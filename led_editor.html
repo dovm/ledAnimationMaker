@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Animation Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #container { display: flex; flex: 1; }
+        #sidebar { width: 200px; overflow-y: auto; padding: 10px; border-right: 1px solid black; }
+        #canvas-container { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; }
+        canvas { border: 1px solid black; cursor: crosshair; }
+        #timeline { height: 120px; border-top: 1px solid black; display: block; align-items: center; padding: 10px; overflow-x: auto; }
+        .led-item { display: flex; justify-content: space-between; margin: 5px 0; }
+        .frame-thumbnail { width: 50px; height: 50px; border: 1px solid black; margin: 5px; display: inline-block; cursor: pointer; }
+        .frame-thumbnail-current{ border: 2px solid red; }
+    </style>
+</head>
+<body>
+    <h1>LED Animation Editor</h1>
+    
+    <div id="container">
+        <div id="sidebar">
+            <label>LED Count: <input type="number" id="ledCount" min="1" max="100" value="20"></label>
+            <label>Shape: 
+                <select id="ledShape">
+                    <option value="line">Line</option>
+                    <option value="circle">Circle</option>
+                </select>
+            </label>
+            <button onclick="addLedStrip()">Add LED Strip</button>
+            <h3>LED Strips</h3>
+            <div id="led-list"></div>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="ledCanvas" width="800" height="400"></canvas>
+        </div>
+    </div>
+    
+    <div id="timeline">
+        <button onclick="prevFrame()">Prev</button>
+        <button onclick="nextFrame()">Next</button>
+        <button onclick="addFrame()">Add Frame</button>
+        <button onclick="deleteFrame()">Delete Frame</button>
+        <button onclick="playAnimation()">Play</button>
+        <button onclick="exportAnimation()">Export</button>
+        <label>Frame Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
+        <label>Brush Color: <input type="color" id="brushColor" value="#ff0000"></label>
+        <div id="frame-thumbnails"></div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('ledCanvas');
+        const ctx = canvas.getContext('2d');
+        const frameRateInput = document.getElementById('frameRate');
+        const brushColorInput = document.getElementById('brushColor');
+        const ledList = document.getElementById('led-list');
+        const frameThumbnails = document.getElementById('frame-thumbnails');
+        
+        let frames = [];
+        let currentFrame = -1;
+        let ledStrips = [];
+        let painting = false;
+        let brushColor = [255, 0, 0];
+        
+        function addLedStrip() {
+            const ledCount = parseInt(document.getElementById('ledCount').value);
+            const ledShape = document.getElementById('ledShape').value;
+            const id = ledStrips.length;
+            ledStrips.push({ id, ledCount, ledShape });
+            updateLedList();
+            if(currentFrame < 0)
+                addFrame()
+            else
+                updateFrames(id, 1)
+        }
+        
+        function playAnimation() {
+            if (frames.length === 0) return;
+            playing = true;
+            let i = 0;
+            const interval = 1000 / frameRateInput.value;
+            const playInterval = setInterval(() => {
+                if (!playing || i >= frames.length) {
+                    clearInterval(playInterval);
+                    playing = false;
+                    return;
+                }
+                drawFrame(frames[i]);
+                i++;
+            }, interval);
+        }
+        
+        function exportAnimation() {
+            if (frames.length === 0) return;
+            const frameRate = parseInt(frameRateInput.value);
+            const pixelCount = ledCount;
+            const header = new Uint8Array([frameRate, 3, pixelCount >> 8, pixelCount & 0xFF]);
+            const data = new Uint8Array(frames.flat().flat());
+            const blob = new Blob([header, data], { type: 'application/octet-stream' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'led_animation.bin';
+            a.click();
+        }
+
+        function updateLedList() {
+            ledList.innerHTML = '';
+            ledStrips.forEach((strip, index) => {
+                const div = document.createElement('div');
+                div.classList.add('led-item');
+                div.innerHTML = `LED Strip ${index + 1} (${strip.ledShape}, ${strip.ledCount} LEDs) 
+                    <div><button onclick="duplicateLedStrip(${index})">Duplicate</button>
+                    <button onclick="removeLedStrip(${index})">Delete</button></div>`;
+                ledList.appendChild(div);
+            });
+        }
+
+        function duplicateLedStrip(index) {
+            const newStrip = { ...ledStrips[index], id: ledStrips.length };
+            ledStrips.push(newStrip);
+            updateLedList();
+            updateFrames(index,1)
+        }
+        
+        function removeLedStrip(index) {
+            ledStrips.splice(index, 1);
+            updateLedList();
+            updateFrames(index, 0)
+        }
+
+        function updateFrames(index, action){
+            frames.forEach(frame => {
+                if(action == 1)
+                    frame.splice(index, 0, new Array(ledStrips[index].ledCount).fill([0, 0, 0]))
+                else
+                    frame.splice(index, 1)
+            });
+            drawFrame(frames[currentFrame]);
+        }
+        
+        function addFrame() {
+            const newFrame = ledStrips.map(strip => new Array(strip.ledCount).fill([0, 0, 0]));
+            frames.splice(currentFrame+1, 0, newFrame);
+            currentFrame++;
+            updateThumbnails();
+            drawFrame(newFrame);
+        }
+
+        function drawEmptyFrame(){
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function drawFrame(frame) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let yOffset = 50;
+            frame.forEach((strip, stripIndex) => {
+                const { ledCount } = ledStrips[stripIndex];
+                const spacing = Math.min(canvas.width / ledCount, 24);
+                strip.forEach((color, index) => {
+                    p = new Path2D();
+                    p.roundRect(index * spacing + 2, yOffset, spacing - 4, 20, 20)
+                    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    ctx.fill(p);
+                });
+                yOffset += 30;
+            });
+        }
+        
+        function updateThumbnails() {
+            frameThumbnails.innerHTML = '';
+            frames.forEach((_, index) => {
+                const div = document.createElement('div');
+                div.classList.add('frame-thumbnail');
+                if(index == currentFrame)
+                    div.classList.add('frame-thumbnail-current');
+                div.innerText = index + 1;
+                div.onclick = () => { currentFrame = index; updateThumbnails(); drawFrame(frames[currentFrame]); };
+                frameThumbnails.appendChild(div);
+            });
+        }
+
+        function prevFrame() { if (currentFrame > 0) { drawFrame(frames[--currentFrame]); updateThumbnails();} }
+        function nextFrame() { if (currentFrame < frames.length - 1) { drawFrame(frames[++currentFrame]); updateThumbnails(); }  }
+        function deleteFrame() { 
+            if (frames.length > 0) { 
+                frames.splice(currentFrame, 1); 
+                if (currentFrame >= frames.length)
+                    currentFrame--; 
+                drawFrame(frames[currentFrame]); 
+                updateThumbnails();
+                if(frames.length == 0)
+                    drawEmptyFrame()
+            } 
+        }
+        
+        canvas.addEventListener('mousedown', () => painting = true);
+        canvas.addEventListener('mouseup', () => painting = false);
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            frames[currentFrame].forEach((strip, stripIndex) => {
+                const spacing = Math.min(canvas.width / ledStrips[stripIndex].ledCount, 24);
+                const index = Math.floor(x / spacing);
+                if (index >= 0 && index < strip.length && y >= 50 + stripIndex * 30 && y < 50 + (stripIndex + 1) * 30) {
+                    strip[index] = [...brushColor];
+                }
+            });
+            drawFrame(frames[currentFrame]);
+        });
+        canvas.addEventListener('mousemove', (event) => {
+            if (!painting) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            frames[currentFrame].forEach((strip, stripIndex) => {
+                const spacing = Math.min(canvas.width / ledStrips[stripIndex].ledCount, 24);
+                const index = Math.floor(x / spacing);
+                if (index >= 0 && index < strip.length && y >= 50 + stripIndex * 30 && y < 50 + (stripIndex + 1) * 30) {
+                    strip[index] = [...brushColor];
+                }
+            });
+            drawFrame(frames[currentFrame]);
+        });
+        
+        brushColorInput.addEventListener('input', () => {
+            const hex = brushColorInput.value;
+            brushColor = [parseInt(hex.substr(1,2), 16), parseInt(hex.substr(3,2), 16), parseInt(hex.substr(5,2), 16)];
+        });
+    </script>
+</body>
+</html>

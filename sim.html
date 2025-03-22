@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Kaleidoscope Simulator</title>
+    <style>
+        body { text-align: center; background-color: black; color: white; }
+        canvas { background: black; display: block; margin: auto; }
+    </style>
+</head>
+<body>
+    <h1>LED Kaleidoscope Simulator</h1>
+    <canvas id="ledCanvas"></canvas>
+    <script>
+        const config = {
+            viewingBase: 500,  // meters
+            farEndBase: 100,  // meters
+            coneLength: 1500,  // meters
+            ledSpacing: 5, // meters (1.5cm per LED)
+            crossSectionSpacing: 300, // meters (LED rings every 10cm)
+            offLedsBetweenSections: 20, // Number of LEDs turned off between sections
+            scale: 5 // Further increased scale factor for better visibility
+        };
+        
+        const canvas = document.getElementById("ledCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 700;
+        canvas.height = 700;
+        
+        function setup_triangles() {
+            const sections = Math.floor(config.coneLength / config.crossSectionSpacing);
+            let triangles = []
+            for (let i = 0; i <= sections; i++) {
+                let progress = i / sections;
+                //let baseSize = config.viewingBase * (1 - progress) + config.farEndBase * progress;
+                let baseSize = config.viewingBase - (config.viewingBase - config.farEndBase)*(i*config.crossSectionSpacing/config.coneLength)
+                console.log(baseSize)
+                let ledCount = Math.floor((baseSize*3) / config.ledSpacing);
+                let centerX = canvas.width / 2;
+                let centerY = canvas.height/2 //300 + i * (1200 / sections);
+                let dots = get_triangle_points(centerX, centerY,baseSize, ledCount)
+                led_buf_offset = calc_section_led_offset(i);
+                triangles.push({
+                    section: i,
+                    baseSize: baseSize,
+                    dots: dots,
+                    led_buf_offset: led_buf_offset[0],
+                    ledCount: ledCount
+                })
+            }
+            return triangles;
+        }
+
+        function get_line_dots(x1, y1, x2, y2, numDots){
+            const dots = []
+            for (let i = 0; i <= numDots; i++) {
+                // Interpolate the position for each dot
+                const t = i / numDots;
+                const x = x1 + t * (x2 - x1);
+                const y = y1 + t * (y2 - y1);
+                dots.push([x,y])
+            }
+            //console.log(dots)
+            return dots
+        }
+
+        function get_triangle_points(centerX,centerY, baseSize, numDots) {
+            const halfBase = baseSize / 2;
+            const height = Math.sqrt(Math.pow(halfBase, 2) + Math.pow(halfBase, 2));
+            //console.log(halfBase, height);
+            // Calculate the three vertices of the triangle
+            const x1 = centerX - halfBase;  // Left point of the base
+            const y1 = centerY + height/2;            // Same height (y-coordinate)
+            //console.log(x1,y1);
+            const x2 = centerX + halfBase;  // Right point of the base
+            const y2 = centerY + height/2;            // Same height (y-coordinate)
+            //console.log(x2,y2);
+            const x3 = centerX;            // The top point
+            const y3 = centerY - height/2;   // Height above the centerY
+            //console.log(x3,y3);
+            let dots = get_line_dots(x1, y1, x2, y2, numDots/3).concat(  // Base side
+            get_line_dots(x2, y2, x3, y3, numDots/3)).concat(  // Right side
+            get_line_dots(x3, y3, x1, y1, numDots/3));  // Left side
+            //console.log(dots)
+            return dots;
+        }
+
+        function drawLEDs(triangles, ledBuffer) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < triangles.length; i++) {
+                for (let j = 0; j < triangles[i].dots.length; j++) {
+                    let x = triangles[i].dots[j][0]// - centerX);
+                    let y = triangles[i].dots[j][1]// - centerY);
+                    
+                    let colorIndex = triangles[i].led_buf_offset + j * 3;
+                    let r = ledBuffer[colorIndex] || 0;
+                    let g = ledBuffer[colorIndex + 1] || 0;
+                    let b = ledBuffer[colorIndex + 2] || 0;
+                    ctx.beginPath();
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.arc(x, y, 1.5, 0, 2 * Math.PI); // Further increased LED size
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function simulateIncomingData() {
+            let bufferSize = 10000;
+            let ledBuffer = new Uint8Array(bufferSize);
+            for (let i = 0; i < bufferSize; i += 3) {
+                ledBuffer[i] = Math.random() * 255; // R
+                ledBuffer[i + 1] = Math.random() * 255; // G
+                ledBuffer[i + 2] = Math.random() * 255; // B
+            }
+            drawLEDs(ledBuffer);
+        }
+
+        function calc_section_led_offset(sec_idx){
+            const sections = Math.floor(config.coneLength / config.crossSectionSpacing);
+            let offset = 0;
+            for(let i = 0;i < sec_idx;i++){
+                let progress = i / sections;
+                let baseSize = config.viewingBase * (1 - progress) + config.farEndBase * progress;
+                let ledCount = Math.floor((baseSize*3) / config.ledSpacing);
+                offset += (ledCount + config.offLedsBetweenSections)* 3;
+            }
+            let progress = sec_idx / sections;
+            let baseSize = config.viewingBase * (1 - progress) + config.farEndBase * progress;
+            let ledCount = Math.floor((baseSize*3) / config.ledSpacing);
+            return [offset, ledCount];
+        }
+
+        function wave(triangles, idx){
+            let bufferSize = 10000;
+            let ledBuffer = new Uint8Array(bufferSize);
+            rgb = [Math.random() * 255,Math.random() * 255,Math.random() * 255]
+            //console.log(sec_offset)
+            for (let i = triangles[idx].led_buf_offset; i < triangles[idx].led_buf_offset + triangles[idx].ledCount*3; i += 3) {
+                ledBuffer[i] = rgb[0]; // R
+                ledBuffer[i + 1] = rgb[1]; // G
+                ledBuffer[i + 2] = rgb[2]; // B
+            }
+            drawLEDs(triangles, ledBuffer);
+            if(idx+1 < triangles.length)
+                setTimeout(()=>{wave(triangles, idx+1)}, 200);
+            else
+                setTimeout(()=>{wave(triangles, 0)}, 200);
+        }
+        let triangles = setup_triangles();
+        wave(triangles, 0)
+    </script>
+</body>
+</html>
