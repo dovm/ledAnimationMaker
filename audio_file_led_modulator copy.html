@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Audio Modulation</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #ledCanvas { border: 1px solid black; display: block; margin: auto; }
+        #controls { margin: 10px; }
+        .color-range { display: flex; align-items: center; margin: 5px; }
+        .color-range input { margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>LED Audio Modulation</h1>
+
+    <input type="file" id="audioFile" accept="audio/*">
+    <button onclick="startAudio()">Play Audio</button>
+    
+    <div id="controls">
+        <h3>Color Ranges</h3>
+        <div class="color-range">
+            <label>Low Freq: <input type="color" id="lowColor" value="#ff0000"></label>
+        </div>
+        <div class="color-range">
+            <label>Mid Freq: <input type="color" id="midColor" value="#00ff00"></label>
+        </div>
+        <div class="color-range">
+            <label>High Freq: <input type="color" id="highColor" value="#0000ff"></label>
+        </div>
+        <h3>LED Group Activation</h3>
+        <label><input type="checkbox" id="group1" checked> Group 1</label>
+        <label><input type="checkbox" id="group2" checked> Group 2</label>
+        <label><input type="checkbox" id="group3" checked> Group 3</label>
+    </div>
+
+    <canvas id="ledCanvas" width="800" height="200"></canvas>
+
+    <script>
+        let audioContext, analyser, source, dataArray;
+        let ledStrips = [{ leds: 20 }, { leds: 30 }, { leds: 25 }]; // Example LED strips
+        let canvas = document.getElementById("ledCanvas");
+        let ctx = canvas.getContext("2d");
+        
+        function startAudio() {
+            let file = document.getElementById("audioFile").files[0];
+            if (!file) return alert("Select an audio file first!");
+            
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                let audioData = event.target.result;
+                setupAudio(audioData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function setupAudio(audioData) {
+            if (audioContext) audioContext.close();
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512; // Determines frequency resolution
+            let bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            
+            audioContext.decodeAudioData(audioData, (buffer) => {
+                source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                source.start();
+                animateLEDs();
+            });
+        }
+
+        function animateLEDs() {
+            requestAnimationFrame(animateLEDs);
+            analyser.getByteFrequencyData(dataArray);
+            
+            let lowColor = hexToRgb(document.getElementById("lowColor").value);
+            let midColor = hexToRgb(document.getElementById("midColor").value);
+            let highColor = hexToRgb(document.getElementById("highColor").value);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let yOffset = 50;
+            ledStrips.forEach((strip, stripIndex) => {
+                let spacing = canvas.width / strip.leds;
+                
+                for (let i = 0; i < strip.leds; i++) {
+                    let freqIndex = Math.floor((i / strip.leds) * dataArray.length);
+                    let amplitude = dataArray[freqIndex] / 255;
+                    
+                    let color = mixColors(lowColor, midColor, highColor, amplitude);
+                    
+                    if (shouldActivate(stripIndex)) {
+                        ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    } else {
+                        ctx.fillStyle = "rgb(0, 0, 0)"; // Turn off if not in selected groups
+                    }
+                    
+                    ctx.fillRect(i * spacing, yOffset, spacing - 2, 20);
+                }
+                yOffset += 40;
+            });
+        }
+
+        function mixColors(low, mid, high, amplitude) {
+            if (amplitude < 0.33) return low;
+            if (amplitude < 0.66) return mid;
+            return high;
+        }
+
+        function hexToRgb(hex) {
+            let bigint = parseInt(hex.slice(1), 16);
+            return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+        }
+
+        function shouldActivate(stripIndex) {
+            return document.getElementById(`group${stripIndex + 1}`)?.checked ?? false;
+        }
+    </script>
+
+</body>
+</html>

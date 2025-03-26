@@ -34,6 +34,7 @@
                 <label>Frame Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
                 <label>Brush Color: <input type="color" id="brushColor" value="#ff0000"></label>
                 <button onclick="move_tool()">move</button>
+                <button onclick="select_tool()">select</button>
                 <button id="drawButton" onclick="draw_tool()">draw</button>
                 <button onclick="playAnimation()">Play</button>
                 <button onclick="exportAnimation()">Export</button>
@@ -41,6 +42,27 @@
             
             <div>
                 <canvas id="ledCanvas" width="800" height="400"></canvas>
+            </div>
+        </div>
+        <div>
+            <input type="file" id="audioFile" accept="audio/*">
+            <button onclick="startAudio()">Play Audio</button>
+            
+            <div id="controls">
+                <h3>Color Ranges</h3>
+                <div class="color-range">
+                    <label>Low Freq: <input type="color" id="lowColor" value="#ff0000"></label>
+                </div>
+                <div class="color-range">
+                    <label>Mid Freq: <input type="color" id="midColor" value="#00ff00"></label>
+                </div>
+                <div class="color-range">
+                    <label>High Freq: <input type="color" id="highColor" value="#0000ff"></label>
+                </div>
+                <h3>LED Group Activation</h3>
+                <label><input type="checkbox" id="group1" checked> Group 1</label>
+                <label><input type="checkbox" id="group2" checked> Group 2</label>
+                <label><input type="checkbox" id="group3" checked> Group 3</label>
             </div>
         </div>
     </div>
@@ -70,7 +92,11 @@
             moving_led: undefined,
             painting: false,
             brushColor: [255, 0, 0],
-            activeLedStrip: undefined
+            activeLedStrip: undefined,
+            select_mode: "start",
+            select_start: {x:0,y:0},
+            select_end: {x:0,y:0},
+            led_selected: []
         }
         
         function addLedStrip() {
@@ -79,8 +105,8 @@
             ledPath =[];
             const spacing = Math.min(canvas.width / ledCount, 24);
             for(i = 0;i < ledCount;i++) {
-                x = spacing*i+2;
-                y = 50+30*id;
+                x = spacing*i+10;
+                y = 50;
                 ledPath.push({x,y})
             }
             ledStrips.push({ id, ledCount, ledPath });
@@ -111,14 +137,19 @@
         function exportAnimation() {
             if (frames.length === 0) return;
             const frameRate = parseInt(frameRateInput.value);
-            const pixelCount = ledCount;
+            let pixelCount = 0;
+            ledStrips.forEach((strip, index) => {pixelCount += strip.ledCount});
             const header = new Uint8Array([frameRate, 3, pixelCount >> 8, pixelCount & 0xFF]);
-            const data = new Uint8Array(frames.flat().flat());
+            const data = new Uint8Array(frames.flat().flat().flat());
             const blob = new Blob([header, data], { type: 'application/octet-stream' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = 'led_animation.bin';
             a.click();
+        }
+
+        function loadAnimation(){
+
         }
 
         function updateLedList() {
@@ -170,6 +201,9 @@
         
         function drawFrame(frame) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            //ctx.fillStyle = "gray";
+            //ctx.fillRect(0,0, canvas.width, canvas.height)
+            if(frame){
             frame.forEach((strip, stripIndex) => {
                 const { ledCount, ledPath } = ledStrips[stripIndex];
                 p = new Path2D();
@@ -185,6 +219,7 @@
                     ctx.fill(p);
                 });
             });
+            }
             if(tool_context.active_tool == "draw"){
                 p = new Path2D();
                 ctx.beginPath();    
@@ -198,6 +233,23 @@
                     p.roundRect(point.x, point.y, 20, 20, 40)
                     ctx.fillStyle = "black";
                     ctx.fill(p);
+                })
+            }
+            else if(tool_context.select_mode == "selecting")
+            {
+                width = tool_context.select_end.x - tool_context.select_start.x;
+                height = tool_context.select_end.y - tool_context.select_start.y;
+                ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
+                ctx.fillRect(tool_context.select_start.x,tool_context.select_start.y, width, height);
+                
+            }
+            else if(tool_context.select_mode == "selected")
+            {
+                tool_context.led_selected.forEach((led, index) =>{
+                    p = new Path2D();
+                    p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
+                    ctx.strokeStyle = "rgb(50, 50, 50)";
+                    ctx.stroke(p);              
                 })
             }
         }
@@ -255,24 +307,113 @@
 
         function move_mousedown(event){
             const rect = canvas.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            if(tool_context.select_mode == "start")
+            {
                 ledStrips.forEach((strip, stripIndex) => {
                     strip.ledPath.forEach((point, index) => {
                         if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                            tool_context.moving_led = {stripIndex, index};
+                            tool_context.led_selected = [];
+                            tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+                            tool_context.select_mode = "selected";
+                            tool_context.move_start = {x,y};
                             tool_context.moving = true;
                         }
                     });
                 });
+                if(tool_context.moving == false)
+                {
+                    tool_context.select_start = {x,y};
+                    tool_context.select_end = {x,y};
+                    tool_context.select_mode = "selecting";
+                }   
+            }
+            else if(tool_context.select_mode == "selected")
+            {
+                let found = false;
+                tool_context.led_selected.forEach((point, index) => {
+                    if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+                        tool_context.move_start = {x,y};
+                        tool_context.moving = true;
+                        found = true;
+                    }
+                });
+                if(!found){
+                    tool_context.led_selected = [];
+                    ledStrips.forEach((strip, stripIndex) => {
+                        strip.ledPath.forEach((point, index) => {
+                            if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+                                tool_context.led_selected = [];
+                                tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+                                tool_context.select_mode = "selected";
+                                tool_context.move_start = {x,y};
+                                tool_context.moving = true;
+                            }
+                        });
+                    });
+                    if(tool_context.led_selected.length == 0)
+                    {
+                        tool_context.select_start = {x,y};
+                        tool_context.select_end = {x,y};
+                        tool_context.select_mode = "selecting";
+                        tool_context.moving = false;
+                    }
+                }
+            }
         }
-        function move_mouseup(event){tool_context.moving = false; tool_context.moving_led = undefined;}
+        function move_mouseup(event){
+            if(tool_context.select_mode == "selecting")
+            {
+                start = {x:0, y:0};
+                end = {x:0, y:0};
+                start.x = Math.min(tool_context.select_start.x, tool_context.select_end.x)
+                start.y = Math.min(tool_context.select_start.y, tool_context.select_end.y)
+                end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
+                end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
+                tool_context.select_mode = "selected"
+                ledStrips.forEach((strip, stripIndex) => {
+                    strip.ledPath.forEach((point, index) => {
+                        if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
+                            tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point})
+                        }
+                    });
+                });
+                if(tool_context.led_selected.length == 0)
+                {
+                    tool_context.select_mode = "start";
+                    tool_context.led_selected = [];
+                }
+            }
+            else if(tool_context.moving == true){
+                tool_context.moving = false;
+                tool_context.led_selected.forEach((led, index) =>{
+                    led.x = led.point.x;
+                    led.y = led.point.y; 
+                });
+            }
+            drawFrame(frames[currentFrame]);
+        }
         function move_mousemove(event){
-            if(!tool_context.moving) return;
             const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left - 10;
-            const y = event.clientY - rect.top - 10;
-            ledStrips[tool_context.moving_led.stripIndex].ledPath[tool_context.moving_led.index] = {x,y};
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            if(tool_context.moving == true)
+            {
+                diffX = x - tool_context.move_start.x;
+                diffY = y - tool_context.move_start.y;
+                //console.log(x, y, diffX, diffY)
+                tool_context.led_selected.forEach((led, index) =>{
+                    led.point.x = led.x + diffX;
+                    led.point.y = led.y + diffY; 
+                });
+            }
+            else if(tool_context.select_mode == "selecting")
+            {
+                tool_context.select_end = {x,y};
+            }
             drawFrame(frames[currentFrame]);
         }
 
@@ -289,10 +430,27 @@
             });
             drawFrame(frames[currentFrame]);
         }
-        function move_click(event){}
+        function move_click(event){
+           // if(tool_context.select_mode == "selecting"){
+           //     ledStrips.forEach((strip, stripIndex) => {
+           //         strip.ledPath.forEach((point, index) => {
+           //             if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+           //                 tool_context.led_selected = [];
+           //                 tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+           //                 tool_context.select_mode = "selected";
+           //                 tool_context.move_start = {x,y};
+           //                 tool_context.moving = true;
+           //             }
+           //         });
+           //     });
+           // }
+            //tool_context.select_mode = "start";
+            //tool_context.led_selected = [];
+        }
         
         
-        function draw_mousedown(event){}
+        function draw_mousedown(event){
+        }
         function draw_mouseup(event){}
         function draw_mousemove(event){}
         function draw_click(event){
@@ -303,12 +461,66 @@
             tool_context.activeLedStrip.ledPath.push({x,y});
             drawFrame(frames[currentFrame]);
         }
+        
+        function select_mousedown(event){
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            if(tool_context.select_mode == "selected")
+            {
+                tool_context.led_selected = [];
+            }
+            tool_context.select_start = {x,y};
+            tool_context.select_end = {x,y};
+            tool_context.select_mode = "selecting";
+        }
+
+        function select_mouseup(event){
+            start = {x:0, y:0};
+            end = {x:0, y:0};
+            start.x = Math.min(tool_context.select_start.x, tool_context.select_end.x)
+            start.y = Math.min(tool_context.select_start.y, tool_context.select_end.y)
+            end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
+            end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
+            tool_context.select_mode = "selected"
+            ledStrips.forEach((strip, stripIndex) => {
+                strip.ledPath.forEach((point, index) => {
+                    if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
+                        tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point})
+                    }
+                });
+            });
+            if(tool_context.led_selected.length == 0)
+            {
+                tool_context.select_mode = "start";
+                tool_context.led_selected = [];
+            }
+            drawFrame(frames[currentFrame]);
+        }
+        
+        function select_mousemove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            if(tool_context.select_mode == "selecting")
+            {
+                tool_context.select_end = {x,y};
+                drawFrame(frames[currentFrame]);
+            }
+        }
+
+        function select_click(event){
+            tool_context.select_mode = "start";
+            tool_context.led_selected = [];
+            tool_context.active_tool = "move";
+        }
+        
 
         tool_callbacks = {
                 brush: {mousedown: brush_mousedown, mouseup: brush_mouseup, mousemove: brush_mousemove, click: brush_click },
                 move: {mousedown: move_mousedown, mouseup: move_mouseup, mousemove: move_mousemove, click: move_click},
                 draw: {mousedown: draw_mousedown, mouseup: draw_mouseup, mousemove: draw_mousemove, click: draw_click},
-                //select: {mousedown: select_mousedown, mouseup: select_mouseup, mousemove: select_mousemove }
+                select: {mousedown: select_mousedown, mouseup: select_mouseup, mousemove: select_mousemove,  click: select_click }
             }
 
         canvas.addEventListener('mousedown', (event) => {
@@ -326,7 +538,7 @@
         canvas.addEventListener('mousemove', (event) => {
             tool_callbacks[tool_context.active_tool].mousemove(event)
         });
-        
+       
         brushColorInput.addEventListener('input', () => {
             const hex = brushColorInput.value;
             tool_context.brushColor = [parseInt(hex.substr(1,2), 16), parseInt(hex.substr(3,2), 16), parseInt(hex.substr(5,2), 16)];
@@ -334,7 +546,7 @@
         });
 
         function move_tool(){ tool_context.active_tool = "move"}
-        
+
         function draw_tool(){ 
             if(tool_context.active_tool != "draw")
             {
