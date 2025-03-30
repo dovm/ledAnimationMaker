@@ -86,9 +86,60 @@
         const ledGroupList = document.getElementById('led-group-list');
         const frameThumbnails = document.getElementById('frame-thumbnails');
         
+        class frame{
+            constructor(length)
+            {
+                this.leds = new Array(length).fill([0, 0, 0])
+            }
+
+            add(index, length)
+            {
+                this.leds.splice(index, 0, ...new Array(length).fill([0,0,0]));
+            }
+
+            remove(index, length)
+            {
+                this.leds.splice(index, length);
+            }
+
+            removeAt(index)
+            {
+                this.leds.splice(index, 1);
+            }
+
+            flat(index)
+            {
+                return this.leds.flat();
+            }
+        }
+
+        class LedStrip {
+            constructor(length, ledPath)
+            {
+                this.ledCount = length;
+                this.ledPath = ledPath;
+            }
+
+            add(index, point)
+            {
+                this.ledCount += 1;
+                this.ledPath.splice(index, 0, point);
+            }
+
+            remove(index){
+                this.ledCount -= 1;
+                this.ledPath.splice(index, 1);
+            }
+
+            push(point){
+                this.ledCount += 1;
+                this.ledPath.push(point);
+            }
+        }
+
         let frames = [];
         let currentFrame = -1;
-        let ledStrips = [];
+        let ledStrip = new LedStrip(0, []);
         let tool_context = {
             active_tool: "move",
             moving: false,
@@ -103,21 +154,23 @@
         }
         
         function addLedStrip() {
+            if(ledStrip == undefined)
+            {  
+                ledStrip = new LedStrip(0, []);
+            }
             const ledCount = parseInt(document.getElementById('ledCount').value);
-            const id = ledStrips.length;
-            ledPath =[];
             const spacing = Math.min(canvas.width / ledCount, 24);
+            const lastLedCount = ledStrip.ledCount;
             for(i = 0;i < ledCount;i++) {
                 x = spacing*i+10;
                 y = 50;
-                ledPath.push({x,y})
+                ledStrip.push({x,y})
             }
-            ledStrips.push({ id, ledCount, ledPath });
-            updateLedList();
+            //updateLedList();
             if(currentFrame < 0)
                 addFrame()
             else
-                updateFrames(id, 1)
+                updateFrames(lastLedCount, ledCount, 1);
         }
         
         function playAnimation() {
@@ -140,10 +193,8 @@
         function exportAnimation() {
             if (frames.length === 0) return;
             const frameRate = parseInt(frameRateInput.value);
-            let pixelCount = 0;
-            ledStrips.forEach((strip, index) => {pixelCount += strip.ledCount});
-            const header = new Uint8Array([frameRate, 3, pixelCount >> 8, pixelCount & 0xFF]);
-            const data = new Uint8Array(frames.flat().flat().flat());
+            const header = new Uint8Array([frameRate, 3, ledStrip.ledCount >> 8, ledStrip.ledCount & 0xFF]);
+            const data = new Uint8Array(frames.flat().flat());
             const blob = new Blob([header, data], { type: 'application/octet-stream' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -155,7 +206,7 @@
 
         }
 
-        function updateLedList() {
+        /*function updateLedList() {
             ledList.innerHTML = '';
             ledStrips.forEach((strip, index) => {
                 const div = document.createElement('div');
@@ -168,6 +219,7 @@
             });
         }
 
+        /*
         function selectStrip(stripIndex){
             strip = ledStrips[stripIndex];
             tool_context.led_selected = []
@@ -186,23 +238,23 @@
         }
         
         function removeLedStrip(index) {
-            ledStrips.splice(index, 1);
+            ledStrip.splice(index, 1);
             updateLedList();
             updateFrames(index, 0)
         }
-
-        function updateFrames(index, action){
+*/
+        function updateFrames(index, length, action){
             frames.forEach(frame => {
                 if(action == 1)
-                    frame.splice(index, 0, new Array(ledStrips[index].ledCount).fill([0, 0, 0]))
+                    frame.add(index, length)
                 else
-                    frame.splice(index, 1)
+                    frame.remove(index, 1)
             });
             drawFrame(frames[currentFrame]);
         }
         
         function addFrame() {
-            const newFrame = ledStrips.map(strip => new Array(strip.ledCount).fill([0, 0, 0]));
+            const newFrame = new frame(ledStrip.ledCount);
             frames.splice(currentFrame+1, 0, newFrame);
             currentFrame++;
             updateThumbnails();
@@ -218,21 +270,18 @@
             //ctx.fillStyle = "gray";
             //ctx.fillRect(0,0, canvas.width, canvas.height)
             if(frame){
-            frame.forEach((strip, stripIndex) => {
-                const { ledCount, ledPath } = ledStrips[stripIndex];
                 p = new Path2D();
                 ctx.beginPath();
-                ledPath.forEach((point, index) => {
+                ledStrip.ledPath.forEach((point, index) => {
                     ctx.lineTo(point.x + 10, point.y + 10);
                 });
                 ctx.stroke();
-                strip.forEach((color, index) => {
+                frame.leds.forEach((color, index) => {
                     p = new Path2D();
-                    p.roundRect(ledPath[index].x, ledPath[index].y, 20, 20, 20)
+                    p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20)
                     ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
                     ctx.fill(p);
                 });
-            });
             }
             if(tool_context.active_tool == "draw"){
                 p = new Path2D();
@@ -309,12 +358,10 @@
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
         
-            ledStrips.forEach((strip, stripIndex) => {
-                strip.ledPath.forEach((point, index) => {
-                    if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                        frames[currentFrame][stripIndex][index] = [...tool_context.brushColor];
-                    }
-                });
+            ledStrip.ledPath.forEach((point, index) => {
+                if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+                    frames[currentFrame].leds[index] = [...tool_context.brushColor];
+                }
             });
             drawFrame(frames[currentFrame]);
         }
@@ -326,16 +373,14 @@
             
             if(tool_context.select_mode == "start")
             {
-                ledStrips.forEach((strip, stripIndex) => {
-                    strip.ledPath.forEach((point, index) => {
+                ledStrip.ledPath.forEach((point, index) => {
                         if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
                             tool_context.led_selected = [];
-                            tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+                            tool_context.led_selected.push({index, x: point.x, y: point.y, point});
                             tool_context.select_mode = "selected";
                             tool_context.move_start = {x,y};
                             tool_context.moving = true;
                         }
-                    });
                 });
                 if(tool_context.moving == false)
                 {
@@ -356,16 +401,14 @@
                 });
                 if(!found){
                     tool_context.led_selected = [];
-                    ledStrips.forEach((strip, stripIndex) => {
-                        strip.ledPath.forEach((point, index) => {
+                    ledStrip.ledPath.forEach((point, index) => {
                             if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
                                 tool_context.led_selected = [];
-                                tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+                                tool_context.led_selected.push({index, x: point.x, y: point.y, point});
                                 tool_context.select_mode = "selected";
                                 tool_context.move_start = {x,y};
                                 tool_context.moving = true;
                             }
-                        });
                     });
                     if(tool_context.led_selected.length == 0)
                     {
@@ -387,12 +430,10 @@
                 end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
                 end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
                 tool_context.select_mode = "selected"
-                ledStrips.forEach((strip, stripIndex) => {
-                    strip.ledPath.forEach((point, index) => {
+                ledStrip.ledPath.forEach((point, index) => {
                         if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
-                            tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point})
+                            tool_context.led_selected.push({index, x: point.x, y: point.y, point})
                         }
-                    });
                 });
                 if(tool_context.led_selected.length == 0)
                 {
@@ -435,31 +476,15 @@
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
-            ledStrips.forEach((strip, stripIndex) => {
-                strip.ledPath.forEach((point, index) => {
+            ledStrip.ledPath.forEach((point, index) => {
                     if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                        frames[currentFrame][stripIndex][index] = [...tool_context.brushColor];
+                        frames[currentFrame][index] = [...tool_context.brushColor];
                     }
-                });
             });
             drawFrame(frames[currentFrame]);
         }
         function move_click(event){
-           // if(tool_context.select_mode == "selecting"){
-           //     ledStrips.forEach((strip, stripIndex) => {
-           //         strip.ledPath.forEach((point, index) => {
-           //             if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-           //                 tool_context.led_selected = [];
-           //                 tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
-           //                 tool_context.select_mode = "selected";
-           //                 tool_context.move_start = {x,y};
-           //                 tool_context.moving = true;
-           //             }
-           //         });
-           //     });
-           // }
-            //tool_context.select_mode = "start";
-            //tool_context.led_selected = [];
+           
         }
         
         
@@ -497,12 +522,10 @@
             end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
             end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
             tool_context.select_mode = "selected"
-            ledStrips.forEach((strip, stripIndex) => {
-                strip.ledPath.forEach((point, index) => {
+            ledStrip.ledPath.forEach((point, index) => {
                     if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
-                        tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point})
+                        tool_context.led_selected.push({index, x: point.x, y: point.y, point})
                     }
-                });
             });
             if(tool_context.led_selected.length == 0)
             {
@@ -567,9 +590,8 @@
                 document.getElementById("drawButton").innerHTML = "finish drawing";
                 tool_context.active_tool = "draw"
                 let ledPath = [];
-                let id = ledStrips.length;
                 let ledCount = 0
-                tool_context.activeLedStrip = { id, ledCount, ledPath }
+                tool_context.activeLedStrip = { ledCount, ledPath }
                 if(currentFrame < 0)
                     addFrame();
             }
@@ -577,22 +599,24 @@
             {
                 document.getElementById("drawButton").innerHTML = "draw";
                 tool_context.active_tool = "move";
-                ledStrips.push(tool_context.activeLedStrip);
-                updateLedList();
-                updateFrames(tool_context.activeLedStrip.id, 1)
+                const currentIndex = ledStrip.ledCount;
+                tool_context.activeLedStrip.ledPath.forEach((point, index) => {
+                    ledStrip.push(point);
+                });
+                updateFrames(currentIndex, tool_context.activeLedStrip.ledCount, 1)
                 tool_context.activeLedStrip = undefined;
             }
         }
 
         function paintSelected(){
             tool_context.led_selected.forEach((led, index) =>{
-                frames[currentFrame][led.stripIndex][led.index] = [...tool_context.brushColor];
+                frames[currentFrame].leds[led.index] = [...tool_context.brushColor];
             });
             drawFrame(frames[currentFrame]);
         }
 
         function saveLedsConfig(){
-            dumpObjectToJson(ledStrips, "led_config.json");
+            dumpObjectToJson(ledStrip, "led_config.json");
         }
 
         function dumpObjectToJson(obj, filename = "object.json") {
@@ -614,8 +638,8 @@
                 updateThumbnails();
                 if(frames.length == 0)
                     drawEmptyFrame()
-                ledStrips = loadedObj;
-                updateLedList();
+                ledStrip = loadedObj;
+                //updateLedList();
                 addFrame()
             });
         }
