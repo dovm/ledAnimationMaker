@@ -33,6 +33,7 @@
             <div id = toolbar>
                 <label>Frame Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
                 <label>Brush Color: <input type="color" id="brushColor" value="#ff0000"></label>
+                <button onclick="paintSelected()">paint selected</button>
                 <button onclick="move_tool()">move</button>
                 <button onclick="select_tool()">select</button>
                 <button id="drawButton" onclick="draw_tool()">draw</button>
@@ -581,6 +582,13 @@
                 updateFrames(tool_context.activeLedStrip.id, 1)
                 tool_context.activeLedStrip = undefined;
             }
+        }
+
+        function paintSelected(){
+            tool_context.led_selected.forEach((led, index) =>{
+                frames[currentFrame][led.stripIndex][led.index] = [...tool_context.brushColor];
+            });
+            drawFrame(frames[currentFrame]);
         }
 
         function saveLedsConfig(){
