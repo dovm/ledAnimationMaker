@@ -78,13 +78,15 @@ playback_thread = threading.Thread(target=play_led_frames, daemon=True)
 playback_thread.start()
 
 # Example usage:
-load_led_file("side_wave.bin", start_immediately=True)  # Start playing immediately
+load_led_file("wave.bin", start_immediately=True)  # Start playing immediately
+time.sleep(3)
+load_led_file("side_wave.bin", start_immediately=False)
 time.sleep(3)
 #load_led_file("animation2.led", start_immediately=False)  # Queue after the first finishes
 add_custom_frame(b"\xFF\x00\x00" * 30)  # Custom frame (all red)
 
 # Stop playback after some time
-time.sleep(15)
+time.sleep(40)
 stop_event.set()
 playback_thread.join()
 led_socket.close()

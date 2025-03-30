@@ -47,7 +47,9 @@
         <div>
             <input type="file" id="audioFile" accept="audio/*">
             <button onclick="startAudio()">Play Audio</button>
-            
+            <div>
+                <label>LED Group:</label>
+            </div>
             <div id="controls">
                 <h3>Color Ranges</h3>
                 <div class="color-range">
@@ -59,11 +61,10 @@
                 <div class="color-range">
                     <label>High Freq: <input type="color" id="highColor" value="#0000ff"></label>
                 </div>
-                <h3>LED Group Activation</h3>
-                <label><input type="checkbox" id="group1" checked> Group 1</label>
-                <label><input type="checkbox" id="group2" checked> Group 2</label>
-                <label><input type="checkbox" id="group3" checked> Group 3</label>
             </div>
+            <button onclick="addGroup()">add Group</button>
+            <button onclick="clearGroups()">clear all groups</button>
+            <div id="led-group-list"></div>
         </div>
     </div>
     
@@ -81,6 +82,7 @@
         const frameRateInput = document.getElementById('frameRate');
         const brushColorInput = document.getElementById('brushColor');
         const ledList = document.getElementById('led-list');
+        const ledGroupList = document.getElementById('led-group-list');
         const frameThumbnails = document.getElementById('frame-thumbnails');
         
         let frames = [];
@@ -157,11 +159,22 @@
             ledStrips.forEach((strip, index) => {
                 const div = document.createElement('div');
                 div.classList.add('led-item');
-                div.innerHTML = `<div><button onclick="duplicateLedStrip(${index})">Dup</button>
+                div.innerHTML = `<div><button onclick="selectStrip(${index})">Select</button>
+                    <button onclick="duplicateLedStrip(${index})">Dup</button>
                     <button onclick="removeLedStrip(${index})">Del</button></div>
-                    LED Strip ${index + 1} (${strip.ledCount} LEDs) `;
+                    Strip ${index + 1} (${strip.ledCount} LEDs) `;
                 ledList.appendChild(div);
             });
+        }
+
+        function selectStrip(stripIndex){
+            strip = ledStrips[stripIndex];
+            tool_context.led_selected = []
+            strip.ledPath.forEach((point, index) => {
+                tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
+            });
+            tool_context.select_mode = "selected";
+            drawFrame(frames[currentFrame]);
         }
 
         function duplicateLedStrip(index) {
@@ -404,7 +417,7 @@
             {
                 diffX = x - tool_context.move_start.x;
                 diffY = y - tool_context.move_start.y;
-                //console.log(x, y, diffX, diffY)
+                
                 tool_context.led_selected.forEach((led, index) =>{
                     led.point.x = led.x + diffX;
                     led.point.y = led.y + diffY; 
@@ -606,6 +619,50 @@
                 callback(obj);
             };
             reader.readAsText(file);
+        }
+
+        let ledGroups = [];
+
+        function clearGroups()
+        {
+            ledGroups = [];
+            updateGroupList();
+        }
+
+        function addGroup(){
+            group = {ledCount: tool_context.led_selected.length, ledList: []};
+            tool_context.led_selected.forEach((led, index) => {
+                group.ledList.push(led);
+            })
+            ledGroups.push(group);
+            updateGroupList();
+        }
+
+        function selectGroup(index){
+            group = ledGroups[index];
+            tool_context.led_selected = []
+            group.ledList.forEach((led, index) => {
+                tool_context.led_selected.push(led);
+            });
+            tool_context.select_mode = "selected";
+            drawFrame(frames[currentFrame]);
+        }
+
+        function removeGroup(index){
+            ledGroups.splice(index, 1);
+            updateGroupList();
+        }
+
+        function updateGroupList() {
+            ledGroupList.innerHTML = '';
+            ledGroups.forEach((group, index) => {
+                const div = document.createElement('div');
+                div.classList.add('led-Group-item');
+                div.innerHTML = `<input id=Group${index} type="checkbox"/><button onclick="selectGroup(${index})">Sel</button>
+                    <button onclick="removeGroup(${index})">Del</button>
+                    Group ${index + 1} (${group.ledCount} LEDs)`;
+                    ledGroupList.appendChild(div);
+            });
         }
 
     </script>
