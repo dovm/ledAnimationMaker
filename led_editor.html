@@ -6,39 +6,266 @@
     <title>LED Animation Editor</title>
     <style>
         body { font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        #container { display: flex; flex: 1; }
-        #sidebar { width: 250px; overflow-y: auto; padding: 10px; border-right: 1px solid black; }
-        #toolbar { flex: 1; display: flex; overflow: auto;}
+        #container { display: flex; flex: 1; background-color: #f0f0f0; }
+        #sidebar { width: 250px; padding: 10px; border-right: 1px solid black; }
+        #toolbar {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px;
+                    background-color: #f0f0f0;
+                    border-bottom: 1px solid #ddd;
+        }
+
+        #toolbar label {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+        }
+
+        #toolbar input[type="number"],
+        #toolbar input[type="color"] {
+            width: 60px;
+            height: 24px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+                
         #canvas-container { flex: 1; overflow: auto; display: block; margin-left: 5px; justify-content: left; align-items: center; }
         canvas { border: 1px solid black; cursor: crosshair; }
-        #timeline { height: 120px; border-top: 1px solid black; display: block; align-items: center; padding: 10px; overflow-x: auto; }
-        .led-item { display: flex; justify-content: space-between; margin: 5px 0; }
-        .frame-thumbnail { width: 50px; height: 50px; border: 1px solid black; margin: 5px; display: inline-block; cursor: pointer; }
+        #timeline { background-color: #f0f0f0; min-height: 100px; border-bottom: 1px solid black; display: block; align-items: center; padding: 10px; overflow-x: auto; }
+        .effect-control { margin: 5px 0; }
+        .frame-thumbnail { width: 82px; height: 42px; padding: 1px; border: 1px solid black; margin: 5px; display: inline-block; cursor: pointer; }
         .frame-thumbnail-current{ border: 2px solid red; }
+        #led-group-list { overflow-y: auto; max-height: 300px;}    
+        .led-group-item { 
+            border: 1px solid #444; 
+            border-radius: 4px; 
+            padding: 3px; 
+            display: flex;  
+            margin: 5px 0; 
+        }
+        .animation-item { 
+            border: 1px solid #444; 
+            border-radius: 4px; 
+            padding: 3px; 
+            display: flex; 
+            margin: 5px 0; 
+        }
+        .selected-item {
+            border: 2px solid blue;
+        }
+
+        .list-item-label {
+            align-content: center; 
+            margin-left: 5px;
+        }
+        .multiple-input-box {
+            border: 1px solid black; 
+            padding: 3px;
+        }
+        .select-input {
+            margin: 2px;
+            width: 100px;
+        }
+        .box-wrapper {
+            position: relative;
+            margin: 5px;
+            margin-top: 1rem;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #444;
+        }
+        .box-label {
+            position: absolute;
+            top: -0.8em;
+            left: 1rem;
+            background: #f0f0f0;
+            padding: 0 0.5em;
+            font-weight: bold;
+            color: #444;
+        }
+        .button-icon-with-text {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .hidden-input {
+          display: none;
+        }
+
+        .icon-img {
+            width: 24px;
+            height: 24px;
+            margin: 1px;
+        }
+
+        .pressed-icon {
+            display: none;
+        }
+
+        /* Show pressed icon on click/press */
+        .icon-label:active .default-icon {
+            display: none;
+        }
+
+        .icon-label:active .pressed-icon {
+            display: inline;
+        }
+
     </style>
 </head>
 <body>
-    <h1>LED Animation Editor</h1>
-    
+    <div id="timeline">
+        <label class="icon-label" for="prev-frame">
+            <img src="icons/chevron-left-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/chevron-left-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="prevFrame()" id="prev-frame" class="hidden-input"></button>
+        <label class="icon-label" for="next-frame">
+            <img src="icons/chevron-right-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/chevron-right-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="nextFrame()" id="next-frame" class="hidden-input"></button>
+        <label class="icon-label" for="add-frame">
+            <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="addFrame()" id="add-frame" class="hidden-input"></button>
+        <label class="icon-label" for="del-frame">
+            <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="deleteFrame()" id="del-frame" class="hidden-input"></button>
+        <label class="icon-label" for="dup-frame">
+            <img src="icons/duplicate-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/duplicate-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="duplicateFrame()" id="dup-frame" class="hidden-input"></button>
+        <label class="icon-label" for="play-animation">
+            <img src="icons/play-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="playAnimation()" id="play-animation" class="hidden-input"></button>
+        <label class="icon-label" for="export-animation">
+            <img src="icons/save-floppy-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+            <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+        </label>
+        <button onclick="exportAnimation()" id="export-animation" class="hidden-input"></button>
+        <div id="frame-thumbnails"></div>
+    </div>
     <div id="container">
+        
         <div id="sidebar">
-            <button onclick="saveLedsConfig()">save to file</button>
-            <input type="file" accept=".json" onchange="loadLedsConfig(event)">load from file</button>
-            <label>LED Count: <input type="number" id="ledCount" min="1" max="100" value="20"></label>
-            <button onclick="addLedStrip()">Add LED Strip</button>
-            <h3>LED Strips</h3>
-            <div id="led-list"></div>
+            <div class="box-wrapper">
+                <span class="box-label">File Operations</span>
+                <div>
+                    <label class="icon-label">
+                        <input type="file" class="hidden-input" accept=".json" onchange="loadLedsConfig(event)">
+                        <img src="icons/upload-svgrepo-com.svg" alt="Upload" class="icon-img default-icon" />
+                        <img src="icons/upload-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <label class="icon-label" onclick="saveLedsConfig()">
+                        <img src="icons/save-floppy-svgrepo-com.svg" alt="Save" class="icon-img default-icon" />
+                        <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                </div>
+            </div>
+            <div class="box-wrapper">
+                <span class="box-label">LED Strip Settings</span>
+                    <label class="icon-label" onclick="addLedStrip()">
+                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Add" class="icon-img default-icon" />
+                    <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    <span class="list-item-label">Add LED Strip</span>
+                </label>
+                <br>
+                <label>LED Count: 
+                    <input type="number" id="ledCount" class="select-input" min="1" max="100" value="20">
+                </label>
+            <label class="icon-label" onclick="deleteLeds()">
+                <img src="icons/trash-svgrepo-com.svg" alt="Delete" class="icon-img default-icon" />
+                <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                <span class="list-item-label">Delete Selected LEDs</span>
+            </label>
+            </div>
+            <div class="box-wrapper">
+                <span class="box-label">LED Groups</span>
+                    <label class="icon-label" onclick="addGroup()">
+                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Add" class="icon-img default-icon" />
+                        <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <label class="icon-label" onclick="clearGroups()">
+                        <img src="icons/trash-svgrepo-com.svg" alt="Clear" class="icon-img default-icon" />
+                        <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                <div id="led-group-list"></div>
+            </div>
         </div>
         <div id="canvas-container">
+            <style>
+                
+            </style>
             <div id = toolbar>
                 <label>Frame Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
                 <label>Brush Color: <input type="color" id="brushColor" value="#ff0000"></label>
-                <button onclick="paintSelected()">paint selected</button>
-                <button onclick="move_tool()">move</button>
-                <button onclick="select_tool()">select</button>
-                <button id="drawButton" onclick="draw_tool()">draw</button>
-                <button onclick="playAnimation()">Play</button>
-                <button onclick="exportAnimation()">Export</button>
+                
+                <label class="icon-label" for="move-tool">
+                    <img src="icons/move-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/move-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="move_tool()" id="move-tool" class="hidden-input"></button>
+                <label class="icon-label" for="rotate-tool">
+                    <img src="icons/move-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/move-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="rotateTool()" id="rotate-tool" class="hidden-input"></button>
+                <label class="icon-label" for="paint-selected">
+                    <img src="icons/paint-bucket-color-colour-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/paint-bucket-color-colour-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="paintSelected()" id="paint-selected" class="hidden-input"></button>
+                <label class="icon-label" for="select-tool">
+                    <img src="icons/selection-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/selection-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="select_tool()" id="select-tool" class="hidden-input"></button>
+                <label class="icon-label" for="paint-tool">
+                    <img src="icons/brush-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/brush-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="paint_tool()" id="paint-tool" class="hidden-input"></button>
+                <label class="icon-label" for="erase-tool">
+                    <img src="icons/erase-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/erase-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="erase_tool()" id="erase-tool" class="hidden-input"></button>
+                <label class="icon-label" for="draw-tool">
+                    <img src="icons/draw-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/draw-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="draw_tool()" id="draw-tool" class="hidden-input"></button>
+                <label class="icon-label" for="insert-selected">
+                    <img src="icons/cut-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/cut-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="insertSelectedLeds()" id="insert-selected" class="hidden-input"></button>
+                
+                <label class="icon-label" for="duplicate-selected">
+                    <img src="icons/duplicate-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/duplicate-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="duplicateSelectedLeds()" id="duplicate-selected" class="hidden-input"></button>
+                
+                <label class="icon-label" for="delete-selected">
+                    <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="deleteSelectedLeds()" id="delete-selected" class="hidden-input"></button>
+                
             </div>
             
             <div>
@@ -46,657 +273,77 @@
             </div>
         </div>
         <div>
-            <input type="file" id="audioFile" accept="audio/*">
-            <button onclick="startAudio()">Play Audio</button>
-            <div>
-                <label>LED Group:</label>
+            <div class="box-wrapper">
+                <span class="box-label">Group Animation</span>
+                <div class="effect-control">
+                    <label>Frames: <input type="number" id="framesCount" min="1" max="60" value="10"></label>
+                </div>
+                <div class="effect-control">
+                    <label>Start Color: <input type="color" id="startColor" value="#ff0000"></label>
+                </div>
+                <div class="effect-control">
+                    <label>End Color: <input type="color" id="endColor" value="#0000ff"></label>
+                </div>
+                <div class="effect-control">
+                    <label>Effect: 
+                        <select id="colorScheme" class="select-input">
+                            <option value="rainbow">Rainbow</option>
+                            <option value="fade">Fade</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="effect-control">
+                    <label class="icon-label" for="apply-animation">
+                        <img src="icons/play-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                        <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <button onclick="createAnimationOnGroup()" id="apply-animation" class="hidden-input"></button>
+                </div>
             </div>
-            <div id="controls">
-                <h3>Color Ranges</h3>
-                <div class="color-range">
-                    <label>Low Freq: <input type="color" id="lowColor" value="#ff0000"></label>
+            <div class="box-wrapper">
+                <span class="box-label">Animation Controls</span>
+                <div class="button-icon-with-text">
+                    <label class="icon-label" for="create-animation">
+                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                        <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <button onclick="createAnimation()" id="create-animation" class="hidden-input"></button>
+                    <label class="button-icon-with-text-label">Create Animation</label>
                 </div>
-                <div class="color-range">
-                    <label>Mid Freq: <input type="color" id="midColor" value="#00ff00"></label>
+                <div class="button-icon-with-text">
+                    <label class="icon-label" for="del-animation">
+                        <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                        <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <button onclick="deleteAnimation()" id="del-animation" class="hidden-input"></button>
+                    <label class="button-icon-with-text-label">Delete Animation</label>
                 </div>
-                <div class="color-range">
-                    <label>High Freq: <input type="color" id="highColor" value="#0000ff"></label>
+                <div class="button-icon-with-text">
+                    <label class="icon-label" for="load-animation">
+                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                        <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <input type="file" id="load-animation" accept=".json" onchange="loadAnimationFromFile(event)" class="hidden-input" />
+                    <label class="button-icon-with-text-label">Load Animation</label>
+                </div>
+                <div class="button-icon-with-text">
+                    <label class="icon-label" for="save-animation">
+                        <img src="icons/save-floppy-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                        <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    </label>
+                    <button onclick="saveAnimationToFile()" id="save-animation" class="hidden-input"></button>
+                    <label class="button-icon-with-text-label">Save Animation</label>
+                </div>
+                <div class="effect-control">
+                    <label>Name: <input type="text" id="animName"></label>
                 </div>
             </div>
-            <button onclick="addGroup()">add Group</button>
-            <button onclick="clearGroups()">clear all groups</button>
-            <div id="led-group-list"></div>
+            <div id="animation-list"></div>
         </div>
     </div>
-    
-    <div id="timeline">
-        <button onclick="prevFrame()">Prev</button>
-        <button onclick="nextFrame()">Next</button>
-        <button onclick="addFrame()">Add Frame</button>
-        <button onclick="deleteFrame()">Delete Frame</button>
-        <div id="frame-thumbnails"></div>
-    </div>
-    
-    <script>
-        const canvas = document.getElementById('ledCanvas');
-        const ctx = canvas.getContext('2d');
-        const frameRateInput = document.getElementById('frameRate');
-        const brushColorInput = document.getElementById('brushColor');
-        const ledList = document.getElementById('led-list');
-        const ledGroupList = document.getElementById('led-group-list');
-        const frameThumbnails = document.getElementById('frame-thumbnails');
-        
-        class frame{
-            constructor(length)
-            {
-                this.leds = new Array(length).fill([0, 0, 0])
-            }
 
-            add(index, length)
-            {
-                this.leds.splice(index, 0, ...new Array(length).fill([0,0,0]));
-            }
-
-            remove(index, length)
-            {
-                this.leds.splice(index, length);
-            }
-
-            removeAt(index)
-            {
-                this.leds.splice(index, 1);
-            }
-
-            flat(index)
-            {
-                return this.leds.flat();
-            }
-        }
-
-        class LedStrip {
-            constructor(length, ledPath)
-            {
-                this.ledCount = length;
-                this.ledPath = ledPath;
-            }
-
-            add(index, point)
-            {
-                this.ledCount += 1;
-                this.ledPath.splice(index, 0, point);
-            }
-
-            remove(index){
-                this.ledCount -= 1;
-                this.ledPath.splice(index, 1);
-            }
-
-            push(point){
-                this.ledCount += 1;
-                this.ledPath.push(point);
-            }
-        }
-
-        let frames = [];
-        let currentFrame = -1;
-        let ledStrip = new LedStrip(0, []);
-        let tool_context = {
-            active_tool: "move",
-            moving: false,
-            moving_led: undefined,
-            painting: false,
-            brushColor: [255, 0, 0],
-            activeLedStrip: undefined,
-            select_mode: "start",
-            select_start: {x:0,y:0},
-            select_end: {x:0,y:0},
-            led_selected: []
-        }
-        
-        function addLedStrip() {
-            if(ledStrip == undefined)
-            {  
-                ledStrip = new LedStrip(0, []);
-            }
-            const ledCount = parseInt(document.getElementById('ledCount').value);
-            const spacing = Math.min(canvas.width / ledCount, 24);
-            const lastLedCount = ledStrip.ledCount;
-            for(i = 0;i < ledCount;i++) {
-                x = spacing*i+10;
-                y = 50;
-                ledStrip.push({x,y})
-            }
-            //updateLedList();
-            if(currentFrame < 0)
-                addFrame()
-            else
-                updateFrames(lastLedCount, ledCount, 1);
-        }
-        
-        function playAnimation() {
-            if (frames.length === 0) return;
-            playing = true;
-            let i = 0;
-            const interval = 1000 / frameRateInput.value;
-            const playInterval = setInterval(() => {
-                if (!playing || i >= frames.length) {
-                    clearInterval(playInterval);
-                    playing = false;
-                    drawFrame(frames[currentFrame]);
-                    return;
-                }
-                drawFrame(frames[i]);
-                i++;
-            }, interval);
-        }
-        
-        function exportAnimation() {
-            if (frames.length === 0) return;
-            const frameRate = parseInt(frameRateInput.value);
-            const header = new Uint8Array([frameRate, 3, ledStrip.ledCount >> 8, ledStrip.ledCount & 0xFF]);
-            const data = new Uint8Array(frames.flat().flat());
-            const blob = new Blob([header, data], { type: 'application/octet-stream' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'led_animation.bin';
-            a.click();
-        }
-
-        function loadAnimation(){
-
-        }
-
-        /*function updateLedList() {
-            ledList.innerHTML = '';
-            ledStrips.forEach((strip, index) => {
-                const div = document.createElement('div');
-                div.classList.add('led-item');
-                div.innerHTML = `<div><button onclick="selectStrip(${index})">Select</button>
-                    <button onclick="duplicateLedStrip(${index})">Dup</button>
-                    <button onclick="removeLedStrip(${index})">Del</button></div>
-                    Strip ${index + 1} (${strip.ledCount} LEDs) `;
-                ledList.appendChild(div);
-            });
-        }
-
-        /*
-        function selectStrip(stripIndex){
-            strip = ledStrips[stripIndex];
-            tool_context.led_selected = []
-            strip.ledPath.forEach((point, index) => {
-                tool_context.led_selected.push({stripIndex, index, x: point.x, y: point.y, point});
-            });
-            tool_context.select_mode = "selected";
-            drawFrame(frames[currentFrame]);
-        }
-
-        function duplicateLedStrip(index) {
-            const newStrip = { ...ledStrips[index], id: ledStrips.length };
-            ledStrips.push(newStrip);
-            updateLedList();
-            updateFrames(index,1)
-        }
-        
-        function removeLedStrip(index) {
-            ledStrip.splice(index, 1);
-            updateLedList();
-            updateFrames(index, 0)
-        }
-*/
-        function updateFrames(index, length, action){
-            frames.forEach(frame => {
-                if(action == 1)
-                    frame.add(index, length)
-                else
-                    frame.remove(index, 1)
-            });
-            drawFrame(frames[currentFrame]);
-        }
-        
-        function addFrame() {
-            const newFrame = new frame(ledStrip.ledCount);
-            frames.splice(currentFrame+1, 0, newFrame);
-            currentFrame++;
-            updateThumbnails();
-            drawFrame(newFrame);
-        }
-
-        function drawEmptyFrame(){
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        function drawFrame(frame) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            //ctx.fillStyle = "gray";
-            //ctx.fillRect(0,0, canvas.width, canvas.height)
-            if(frame){
-                p = new Path2D();
-                ctx.beginPath();
-                ledStrip.ledPath.forEach((point, index) => {
-                    ctx.lineTo(point.x + 10, point.y + 10);
-                });
-                ctx.stroke();
-                frame.leds.forEach((color, index) => {
-                    p = new Path2D();
-                    p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20)
-                    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                    ctx.fill(p);
-                });
-            }
-            if(tool_context.active_tool == "draw"){
-                p = new Path2D();
-                ctx.beginPath();    
-                const ledPath = tool_context.activeLedStrip.ledPath;
-                ledPath.forEach((point, index) =>{
-                    ctx.lineTo(point.x + 10, point.y + 10);
-                });
-                ctx.stroke();
-                ledPath.forEach((point, index) =>{
-                    p = new Path2D();
-                    p.roundRect(point.x, point.y, 20, 20, 40)
-                    ctx.fillStyle = "black";
-                    ctx.fill(p);
-                })
-            }
-            else if(tool_context.select_mode == "selecting")
-            {
-                width = tool_context.select_end.x - tool_context.select_start.x;
-                height = tool_context.select_end.y - tool_context.select_start.y;
-                ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
-                ctx.fillRect(tool_context.select_start.x,tool_context.select_start.y, width, height);
-                
-            }
-            else if(tool_context.select_mode == "selected")
-            {
-                tool_context.led_selected.forEach((led, index) =>{
-                    p = new Path2D();
-                    p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
-                    ctx.strokeStyle = "rgb(50, 50, 50)";
-                    ctx.stroke(p);              
-                })
-            }
-        }
-        
-        function updateThumbnails() {
-            frameThumbnails.innerHTML = '';
-            frames.forEach((_, index) => {
-                const div = document.createElement('div');
-                div.classList.add('frame-thumbnail');
-                if(index == currentFrame)
-                    div.classList.add('frame-thumbnail-current');
-                div.innerText = index + 1;
-                div.onclick = () => { currentFrame = index; updateThumbnails(); drawFrame(frames[currentFrame]); };
-                frameThumbnails.appendChild(div);
-            });
-        }
-
-        function prevFrame() { if (currentFrame > 0) { drawFrame(frames[--currentFrame]); updateThumbnails();} }
-        function nextFrame() { if (currentFrame < frames.length - 1) { drawFrame(frames[++currentFrame]); updateThumbnails(); }  }
-        function deleteFrame() { 
-            if (frames.length > 0) { 
-                frames.splice(currentFrame, 1); 
-                if (currentFrame >= frames.length)
-                    currentFrame--; 
-                drawFrame(frames[currentFrame]); 
-                updateThumbnails();
-                if(frames.length == 0)
-                    drawEmptyFrame()
-            } 
-        }
-        function abs(x)
-        {
-            if(x < 0)
-                x = x*-1;
-            return x;
-        }
-
-        function brush_mousedown(event){ tool_context.painting = true; }
-        function brush_mouseup(event){ tool_context.painting = false; }
-        function brush_mousemove(event){ 
-            if (!tool_context.painting) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-        
-            ledStrip.ledPath.forEach((point, index) => {
-                if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                    frames[currentFrame].leds[index] = [...tool_context.brushColor];
-                }
-            });
-            drawFrame(frames[currentFrame]);
-        }
-
-        function move_mousedown(event){
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            
-            if(tool_context.select_mode == "start")
-            {
-                ledStrip.ledPath.forEach((point, index) => {
-                        if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                            tool_context.led_selected = [];
-                            tool_context.led_selected.push({index, x: point.x, y: point.y, point});
-                            tool_context.select_mode = "selected";
-                            tool_context.move_start = {x,y};
-                            tool_context.moving = true;
-                        }
-                });
-                if(tool_context.moving == false)
-                {
-                    tool_context.select_start = {x,y};
-                    tool_context.select_end = {x,y};
-                    tool_context.select_mode = "selecting";
-                }   
-            }
-            else if(tool_context.select_mode == "selected")
-            {
-                let found = false;
-                tool_context.led_selected.forEach((point, index) => {
-                    if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                        tool_context.move_start = {x,y};
-                        tool_context.moving = true;
-                        found = true;
-                    }
-                });
-                if(!found){
-                    tool_context.led_selected = [];
-                    ledStrip.ledPath.forEach((point, index) => {
-                            if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                                tool_context.led_selected = [];
-                                tool_context.led_selected.push({index, x: point.x, y: point.y, point});
-                                tool_context.select_mode = "selected";
-                                tool_context.move_start = {x,y};
-                                tool_context.moving = true;
-                            }
-                    });
-                    if(tool_context.led_selected.length == 0)
-                    {
-                        tool_context.select_start = {x,y};
-                        tool_context.select_end = {x,y};
-                        tool_context.select_mode = "selecting";
-                        tool_context.moving = false;
-                    }
-                }
-            }
-        }
-        function move_mouseup(event){
-            if(tool_context.select_mode == "selecting")
-            {
-                start = {x:0, y:0};
-                end = {x:0, y:0};
-                start.x = Math.min(tool_context.select_start.x, tool_context.select_end.x)
-                start.y = Math.min(tool_context.select_start.y, tool_context.select_end.y)
-                end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
-                end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
-                tool_context.select_mode = "selected"
-                ledStrip.ledPath.forEach((point, index) => {
-                        if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
-                            tool_context.led_selected.push({index, x: point.x, y: point.y, point})
-                        }
-                });
-                if(tool_context.led_selected.length == 0)
-                {
-                    tool_context.select_mode = "start";
-                    tool_context.led_selected = [];
-                }
-            }
-            else if(tool_context.moving == true){
-                tool_context.moving = false;
-                tool_context.led_selected.forEach((led, index) =>{
-                    led.x = led.point.x;
-                    led.y = led.point.y; 
-                });
-            }
-            drawFrame(frames[currentFrame]);
-        }
-        function move_mousemove(event){
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            
-            if(tool_context.moving == true)
-            {
-                diffX = x - tool_context.move_start.x;
-                diffY = y - tool_context.move_start.y;
-                
-                tool_context.led_selected.forEach((led, index) =>{
-                    led.point.x = led.x + diffX;
-                    led.point.y = led.y + diffY; 
-                });
-            }
-            else if(tool_context.select_mode == "selecting")
-            {
-                tool_context.select_end = {x,y};
-            }
-            drawFrame(frames[currentFrame]);
-        }
-
-        function brush_click(event){
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            ledStrip.ledPath.forEach((point, index) => {
-                    if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                        frames[currentFrame][index] = [...tool_context.brushColor];
-                    }
-            });
-            drawFrame(frames[currentFrame]);
-        }
-        function move_click(event){
-           
-        }
-        
-        
-        function draw_mousedown(event){
-        }
-        function draw_mouseup(event){}
-        function draw_mousemove(event){}
-        function draw_click(event){
-            const rect = canvas.getBoundingClientRect();
-            x = event.clientX - rect.left;
-            y = event.clientY - rect.top;
-            tool_context.activeLedStrip.ledCount += 1;
-            tool_context.activeLedStrip.ledPath.push({x,y});
-            drawFrame(frames[currentFrame]);
-        }
-        
-        function select_mousedown(event){
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            if(tool_context.select_mode == "selected")
-            {
-                tool_context.led_selected = [];
-            }
-            tool_context.select_start = {x,y};
-            tool_context.select_end = {x,y};
-            tool_context.select_mode = "selecting";
-        }
-
-        function select_mouseup(event){
-            start = {x:0, y:0};
-            end = {x:0, y:0};
-            start.x = Math.min(tool_context.select_start.x, tool_context.select_end.x)
-            start.y = Math.min(tool_context.select_start.y, tool_context.select_end.y)
-            end.x = Math.max(tool_context.select_start.x, tool_context.select_end.x)
-            end.y = Math.max(tool_context.select_start.y, tool_context.select_end.y)
-            tool_context.select_mode = "selected"
-            ledStrip.ledPath.forEach((point, index) => {
-                    if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
-                        tool_context.led_selected.push({index, x: point.x, y: point.y, point})
-                    }
-            });
-            if(tool_context.led_selected.length == 0)
-            {
-                tool_context.select_mode = "start";
-                tool_context.led_selected = [];
-            }
-            drawFrame(frames[currentFrame]);
-        }
-        
-        function select_mousemove(event) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            if(tool_context.select_mode == "selecting")
-            {
-                tool_context.select_end = {x,y};
-                drawFrame(frames[currentFrame]);
-            }
-        }
-
-        function select_click(event){
-            tool_context.select_mode = "start";
-            tool_context.led_selected = [];
-            tool_context.active_tool = "move";
-        }
-        
-
-        tool_callbacks = {
-                brush: {mousedown: brush_mousedown, mouseup: brush_mouseup, mousemove: brush_mousemove, click: brush_click },
-                move: {mousedown: move_mousedown, mouseup: move_mouseup, mousemove: move_mousemove, click: move_click},
-                draw: {mousedown: draw_mousedown, mouseup: draw_mouseup, mousemove: draw_mousemove, click: draw_click},
-                select: {mousedown: select_mousedown, mouseup: select_mouseup, mousemove: select_mousemove,  click: select_click }
-            }
-
-        canvas.addEventListener('mousedown', (event) => {
-           tool_callbacks[tool_context.active_tool].mousedown(event)
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            tool_callbacks[tool_context.active_tool].mouseup(event)
-        });
-        
-        canvas.addEventListener('click', (event) => {
-            tool_callbacks[tool_context.active_tool].click(event)
-        });
-
-        canvas.addEventListener('mousemove', (event) => {
-            tool_callbacks[tool_context.active_tool].mousemove(event)
-        });
-       
-        brushColorInput.addEventListener('input', () => {
-            const hex = brushColorInput.value;
-            tool_context.brushColor = [parseInt(hex.substr(1,2), 16), parseInt(hex.substr(3,2), 16), parseInt(hex.substr(5,2), 16)];
-            tool_context.active_tool = "brush"
-        });
-
-        function move_tool(){ tool_context.active_tool = "move"}
-
-        function draw_tool(){ 
-            if(tool_context.active_tool != "draw")
-            {
-                document.getElementById("drawButton").innerHTML = "finish drawing";
-                tool_context.active_tool = "draw"
-                let ledPath = [];
-                let ledCount = 0
-                tool_context.activeLedStrip = { ledCount, ledPath }
-                if(currentFrame < 0)
-                    addFrame();
-            }
-            else
-            {
-                document.getElementById("drawButton").innerHTML = "draw";
-                tool_context.active_tool = "move";
-                const currentIndex = ledStrip.ledCount;
-                tool_context.activeLedStrip.ledPath.forEach((point, index) => {
-                    ledStrip.push(point);
-                });
-                updateFrames(currentIndex, tool_context.activeLedStrip.ledCount, 1)
-                tool_context.activeLedStrip = undefined;
-            }
-        }
-
-        function paintSelected(){
-            tool_context.led_selected.forEach((led, index) =>{
-                frames[currentFrame].leds[led.index] = [...tool_context.brushColor];
-            });
-            drawFrame(frames[currentFrame]);
-        }
-
-        function saveLedsConfig(){
-            dumpObjectToJson(ledStrip, "led_config.json");
-        }
-
-        function dumpObjectToJson(obj, filename = "object.json") {
-            const json = JSON.stringify(obj, null, 4);
-            const blob = new Blob([json], { type: "application/json" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function loadLedsConfig(event){
-            const file = event.target.files[0];
-            loadObjectFromJson(file, (loadedObj) => {
-                frames = [];
-                currentFrame = -1;
-                updateThumbnails();
-                if(frames.length == 0)
-                    drawEmptyFrame()
-                ledStrip = loadedObj;
-                //updateLedList();
-                addFrame()
-            });
-        }
-
-        function loadObjectFromJson(file, callback) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const obj = JSON.parse(event.target.result);
-                callback(obj);
-            };
-            reader.readAsText(file);
-        }
-
-        let ledGroups = [];
-
-        function clearGroups()
-        {
-            ledGroups = [];
-            updateGroupList();
-        }
-
-        function addGroup(){
-            group = {ledCount: tool_context.led_selected.length, ledList: []};
-            tool_context.led_selected.forEach((led, index) => {
-                group.ledList.push(led);
-            })
-            ledGroups.push(group);
-            updateGroupList();
-        }
-
-        function selectGroup(index){
-            group = ledGroups[index];
-            tool_context.led_selected = []
-            group.ledList.forEach((led, index) => {
-                tool_context.led_selected.push(led);
-            });
-            tool_context.select_mode = "selected";
-            drawFrame(frames[currentFrame]);
-        }
-
-        function removeGroup(index){
-            ledGroups.splice(index, 1);
-            updateGroupList();
-        }
-
-        function updateGroupList() {
-            ledGroupList.innerHTML = '';
-            ledGroups.forEach((group, index) => {
-                const div = document.createElement('div');
-                div.classList.add('led-Group-item');
-                div.innerHTML = `<input id=Group${index} type="checkbox"/><button onclick="selectGroup(${index})">Sel</button>
-                    <button onclick="removeGroup(${index})">Del</button>
-                    Group ${index + 1} (${group.ledCount} LEDs)`;
-                    ledGroupList.appendChild(div);
-            });
-        }
-
-    </script>
+    <script src="audio_modulator.js"></script>
+    <script src="led_editor.js"></script>
+   
 </body>
 </html>
