@@ -10,93 +10,6 @@ const animationList = document.getElementById('animation-list');
 const effectAnim = document.getElementById('effect-anim');
 
 
-class frame{
-    constructor(length)
-    {
-        this.leds = new Array(length).fill([0, 0, 0])
-    }
-
-    fromJson(jsObj){
-        this.leds = new Array(jsObj.leds.length);
-        jsObj.leds.forEach((color, index) => {this.leds[index] = color});
-        return this;
-    }
-
-    add(index, length)
-    {
-        this.leds.splice(index, 0, ...new Array(length).fill([0,0,0]));
-    }
-
-    remove(index, length)
-    {
-        this.leds.splice(index, length);
-    }
-
-    removeAt(index)
-    {
-        this.leds.splice(index, 1);
-    }
-
-    flat(index)
-    {
-        return this.leds.flat();
-    }
-}
-
-class Animation{
-    constructor(){
-        this.frames = [];
-        this.groups = [];
-        this.name = "";
-        this.selected = false;
-    }
-
-    fromJson(jsObj)
-    {
-        this.name = jsObj.name;
-        this.frames = [];
-        jsObj.frames.forEach((f, index) => {this.frames.push(new frame(0).fromJson(f))});
-        this.groups = [];
-        jsObj.groups.forEach((group, index) =>{this.groups.push(group)})
-        return this;
-    }
-}
-
-class LedStrip {
-    constructor(length, ledPath)
-    {
-        this.ledCount = length;
-        this.ledPath = ledPath;
-    }
-
-    add(index, point)
-    {
-        this.ledCount += 1;
-        this.ledPath.splice(index, 0, point);
-    }
-
-    remove(index){
-        this.ledCount -= 1;
-        this.ledPath.splice(index, 1);
-    }
-
-    push(point){
-        if(point instanceof Array)
-            this.ledCount += point.length;
-        else
-            this.ledCount += 1;
-        this.ledPath.push(point);
-    }
-
-    fromJson(obj){
-        obj.ledPath.forEach((led, index) => {
-            this.push(led);
-        });
-        return this;
-    }
-
-}
-
 let animation = [new Animation()];
 let currentAnim = 0;
 let currentFrame = -1;
@@ -159,38 +72,6 @@ function deleteLeds() {
     drawFrame(animation[currentAnim].frames[currentFrame]);
 }
 
-
-
-
-function playAnimation() {
-    if (animation[currentAnim].frames.length === 0) return;
-    playing = true;
-    let i = 0;
-    const interval = 1000 / frameRateInput.value;
-    const playInterval = setInterval(() => {
-        if (!playing || i >= animation[currentAnim].frames.length) {
-            clearInterval(playInterval);
-            playing = false;
-            drawFrame(animation[currentAnim].frames[currentFrame]);
-            return;
-        }
-        drawFrame(animation[currentAnim].frames[i]);
-        i++;
-    }, interval);
-}
-
-function exportAnimation() {
-    if (animation[currentAnim].frames.length === 0) return;
-    const frameRate = parseInt(frameRateInput.value);
-    const header = new Uint8Array([frameRate, 3, ledStrip.ledCount >> 8, ledStrip.ledCount & 0xFF]);
-    const data = new Uint8Array(animation[currentAnim].frames.flat().flat());
-    const blob = new Blob([header, data], { type: 'application/octet-stream' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'led_animation.bin';
-    a.click();
-}
-
 function loadAnimation(){
 
 }
@@ -224,6 +105,7 @@ function drawFrame(frame) {
 
     if(frame){
         p = new Path2D();
+        ctx.strokeStyle = `rgb(157, 157, 157)`;
         ctx.beginPath();
         ledStrip.ledPath.forEach((point, index) => {
             ctx.lineTo(point.x + 10, point.y + 10);
@@ -231,8 +113,13 @@ function drawFrame(frame) {
         ctx.stroke();
         frame.leds.forEach((color, index) => {
             p = new Path2D();
-            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20)
-            ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            if(ledStrip.isDisabled(index)){ 
+                ctx.fillStyle = `rgb(185, 185, 185)`;
+            }
+            else{
+                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            }
+            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
             ctx.fill(p);
         });
     }
@@ -283,9 +170,6 @@ function duplicateFrame() {
     }
 }
 
-
-function prevFrame() { if (currentFrame > 0) { drawFrame(animation[currentAnim].frames[--currentFrame]); updateThumbnails();} }
-function nextFrame() { if (currentFrame < animation[currentAnim].frames.length - 1) { drawFrame(animation[currentAnim].frames[++currentFrame]); updateThumbnails(); }  }
 function deleteFrame() { 
     if (animation[currentAnim].frames.length > 0) { 
         animation[currentAnim].frames.splice(currentFrame, 1); 
@@ -325,7 +209,8 @@ function dragFrameOver(event) {
 function dragFrameEnd(event) {
     event.target.classList.remove('dragging');
     const frameThumbnails = document.querySelectorAll('.frame-thumbnail');
-    const newOrder = Array.from(frameThumbnails).map(thumb => parseInt(thumb.innerText) - 1);
+    
+    const newOrder = Array.from(frameThumbnails).map(thumb => parseInt(thumb.dataset.frameIndex));
     
     // Reorder frames in animation
     const newFrames = newOrder.map(index => animation[currentAnim].frames[index]);
@@ -356,7 +241,7 @@ function updateThumbnails() {
         thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
         
         ledStrip.ledPath.forEach((point, ledIndex) => {
-            if (frame.leds[ledIndex]) {
+            if (frame.leds[ledIndex] && !ledStrip.isDisabled(ledIndex)) {
                 const color = frame.leds[ledIndex];
                 thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
                 thumbnailCtx.fillRect(
@@ -378,6 +263,7 @@ function updateThumbnails() {
         div.addEventListener('dragover', dragFrameOver);
         div.addEventListener('dragend', dragFrameEnd);
         div.onclick = () => { currentFrame = index; updateThumbnails(); drawFrame(animation[currentAnim].frames[currentFrame]); };
+        div.dataset.frameIndex = index;
         frameThumbnails.appendChild(div);
     });
 }
@@ -569,7 +455,7 @@ function select_mousedown(event){
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    if(toolContext.select_mode == "selected")
+    if(toolContext.select_mode == "selected" && !event.ctrlKey)
     {
         toolContext.led_selected = [];
     }
@@ -615,21 +501,49 @@ function select_click(event){
     //toolContext.select_mode = "start";
     //toolContext.led_selected = [];
     //toolContext.active_tool = "move";
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    toolContext.select_mode = "selected";
-    ledStrip.ledPath.forEach((point, index) => {
-            if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                toolContext.led_selected.push({index, x: point.x, y: point.y, point})
+    
+    if (event.ctrlKey) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        ledStrip.ledPath.forEach((point, index) => {
+            if (x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20) {
+                const existingIndex = toolContext.led_selected.findIndex(led => led.index === index);
+                if (existingIndex === -1) {
+                    toolContext.led_selected.push({index, x: point.x, y: point.y, point});
+                } else {
+                    toolContext.led_selected.splice(existingIndex, 1);
+                }
             }
-    });
-    if(toolContext.led_selected.length == 0)
-    {
-        toolContext.select_mode = "start";
-        toolContext.led_selected = [];
+        });
+        
+        if (toolContext.led_selected.length === 0) {
+            toolContext.select_mode = "start";
+        } else {
+            toolContext.select_mode = "selected";
+        }
+        drawFrame(animation[currentAnim].frames[currentFrame]);
+        return;
     }
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    else
+    {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        toolContext.select_mode = "selected";
+        ledStrip.ledPath.forEach((point, index) => {
+                if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+                    toolContext.led_selected.push({index, x: point.x, y: point.y, point})
+                }
+        });
+        if(toolContext.led_selected.length == 0)
+        {
+            toolContext.select_mode = "start";
+            toolContext.led_selected = [];
+        }
+        drawFrame(animation[currentAnim].frames[currentFrame]);
+    }
 }
 
 function deleteSelectedLeds() {
@@ -837,11 +751,19 @@ function paintSelected(){
 }
 
 function rotate90Deg(center, point){
+    let rotate_angle = 90;
+    try{
+        rotate_angle = parseFloat(document.getElementById("rotate_angle").value);
+    }
+    catch(e){
+        rotate_angle = 90;
+    }
     let distance = Math.sqrt(Math.pow(point.x - center.x,2)+Math.pow(point.y - center.y,2));
     let angle = Math.atan2((center.y - point.y),(center.x - point.x));
-    angle = angle -= Math.PI/2; 
+    angle = angle - rotate_angle*Math.PI/180; 
     point.x = center.x + distance*Math.cos(angle);
     point.y = center.y + distance*Math.sin(angle);
+    console.log(point)
 }
 
 function rotateTool(){
@@ -856,6 +778,7 @@ function rotateTool(){
     toolContext.led_selected.forEach((led, index) =>{
         rotate90Deg(center, toolContext.led_selected[index].point);
         rotate90Deg(center, led);
+
         //animation[currentAnim].frames[currentFrame].leds[led.index] = [...toolContext.brushColor];
     });
     drawFrame(animation[currentAnim].frames[currentFrame]);
@@ -864,6 +787,16 @@ function rotateTool(){
 function erase_tool(){
     toolContext.led_selected.forEach((led, index) =>{
         animation[currentAnim].frames[currentFrame].leds[led.index] = [0,0,0];
+    });
+    drawFrame(animation[currentAnim].frames[currentFrame]);
+}
+
+function toggleSelectedLeds(){
+    toolContext.led_selected.forEach((led, index) =>{
+        if(ledStrip.isDisabled(led.index))  
+            ledStrip.enable(led.index);
+        else
+            ledStrip.disable(led.index);
     });
     drawFrame(animation[currentAnim].frames[currentFrame]);
 }
@@ -891,17 +824,16 @@ function loadLedsFromJson(loadedObj)
     updateThumbnails();
     if(animation[currentAnim].frames.length == 0)
         drawEmptyFrame()
-    ledStrip = loadedObj;
-    if(ledStrip.ledPath == undefined)
+    ledStrip = new LedStrip(loadedObj.ledCount, loadedObj.ledPath);
+    if(loadedObj.leds)
     {
-        let a = new LedStrip(0, []);
-        ledStrip.forEach((strip, index) => {
-            a.ledPath.push(...strip.ledPath);
+        loadedObj.leds.forEach((led, index) => {
+            if(led)
+                ledStrip.disable(index);
+            else
+                ledStrip.enable(index);
         });
-        a.ledCount = a.ledPath.length;
-        ledStrip = a;
     }
-    //updateLedList();
     addFrame()
 }
 
@@ -1040,7 +972,8 @@ function saveAnimationToFile(){
 
 const colorSchemeMap = {
     'rainbow': rainbowColorScheme,
-    'fade': fadeColorScheme
+    'fade': fadeColorScheme,
+    'random': randomColorScheme
 };
 
 function createAnimationOnGroup() {
@@ -1053,7 +986,7 @@ function createAnimationOnGroup() {
     
     // Ensure we have enough frames starting from current frame
     while (animation[currentAnim].frames.length < startFrame + framesCount) {
-        addFrame();
+        animation[currentAnim].frames.push(new frame(ledStrip.ledCount));
     }
     
     // Get selected LEDs from the current group
@@ -1078,6 +1011,17 @@ function createAnimationOnGroup() {
     updateThumbnails();
 }
 
+function randomColorScheme(frameIndex, totalFrames){
+    const startColor = hexToRgb(document.getElementById('startColor').value);
+    const endColor = hexToRgb(document.getElementById('endColor').value);
+
+    return [
+        Math.round(startColor[0] + (endColor[0] - startColor[0]) * Math.random()),
+        Math.round(startColor[1] + (endColor[1] - startColor[1]) * Math.random()),
+        Math.round(startColor[2] + (endColor[2] - startColor[2]) * Math.random())
+    ];
+}
+
 function rainbowColorScheme(frameIndex, totalFrames) {
     const startColor = hexToRgb(document.getElementById('startColor').value);
     const endColor = hexToRgb(document.getElementById('endColor').value);
@@ -1085,13 +1029,15 @@ function rainbowColorScheme(frameIndex, totalFrames) {
     const rainbowColor = hslToRgb(hue / 360, 1, 0.5);
     
     // Blend between start and end colors
-    const progress = frameIndex / totalFrames;
+    const progress = 1 - Math.pow(100,-(frameIndex / totalFrames));
     return [
         Math.round(startColor[0] + (endColor[0] - startColor[0]) * progress),
         Math.round(startColor[1] + (endColor[1] - startColor[1]) * progress),
         Math.round(startColor[2] + (endColor[2] - startColor[2]) * progress)
     ];
 }
+
+
 
 function fadeColorScheme(frameIndex, totalFrames) {
     const startColor = hexToRgb(document.getElementById('startColor').value);
@@ -1179,8 +1125,10 @@ document.addEventListener('keydown', function(event) {
             break;
         case 'delete':
         case 'backspace':
-            deleteSelectedLeds();
-            event.stopPropagation();
+            if(!event.target.id){
+                deleteSelectedLeds();
+                event.stopPropagation();
+            }
             break;
         case 'tab':
             if (event.shiftKey) {
@@ -1443,6 +1391,13 @@ saveAnimationToFile = function() {
     saveState();
     originalSaveAnimationToFile();
 };  
+
+const originalToggleSelectedLeds = toggleSelectedLeds;
+toggleSelectedLeds = function() {
+    saveState();
+    originalToggleSelectedLeds();
+};
+
 
 
 

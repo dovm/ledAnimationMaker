@@ -210,8 +210,8 @@
                 
             </style>
             <div id = toolbar>
-                <label>Frame Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
-                <label>Brush Color: <input type="color" id="brushColor" value="#ff0000"></label>
+                <label>Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
+                <label>Color: <input type="color" id="brushColor" value="#ff0000"></label>
                 
                 <label class="icon-label" for="move-tool">
                     <img src="icons/move-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
@@ -219,15 +219,21 @@
                 </label>
                 <button onclick="move_tool()" id="move-tool" class="hidden-input"></button>
                 <label class="icon-label" for="rotate-tool">
-                    <img src="icons/move-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/move-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                    <img src="icons/rotate-right-fill-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/rotate-right-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
                 </label>
                 <button onclick="rotateTool()" id="rotate-tool" class="hidden-input"></button>
+                <label>Angle: <input type="number" id="rotate_angle" min="0" max="360" value="90"></label>
                 <label class="icon-label" for="paint-selected">
                     <img src="icons/paint-bucket-color-colour-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
                     <img src="icons/paint-bucket-color-colour-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
                 </label>
                 <button onclick="paintSelected()" id="paint-selected" class="hidden-input"></button>
+                <label class="icon-label" for="toggle-leds">
+                    <img src="icons/toggle-on-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
+                    <img src="icons/toggle-on-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
+                </label>
+                <button onclick="toggleSelectedLeds()" id="toggle-leds" class="hidden-input"></button>
                 <label class="icon-label" for="select-tool">
                     <img src="icons/selection-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
                     <img src="icons/selection-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
@@ -269,7 +275,7 @@
             </div>
             
             <div>
-                <canvas id="ledCanvas" width="800" height="400"></canvas>
+                <canvas id="ledCanvas" width="800" height="600"></canvas>
             </div>
         </div>
         <div>
@@ -289,6 +295,7 @@
                         <select id="colorScheme" class="select-input">
                             <option value="rainbow">Rainbow</option>
                             <option value="fade">Fade</option>
+                            <option value="random">Random</option>
                         </select>
                     </label>
                 </div>
@@ -342,6 +349,7 @@
         </div>
     </div>
 
+    <script src="led_common.js"></script>
     <script src="audio_modulator.js"></script>
     <script src="led_editor.js"></script>
    
