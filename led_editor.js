@@ -1,5 +1,6 @@
 
-const canvas = document.getElementById('ledCanvas');
+const canvasLayout = document.getElementById('ledCanvasLayout');
+const canvasAnimation = document.getElementById('ledCanvasAnimation');
 const frameRateInput = document.getElementById('frameRate');
 const brushColorInput = document.getElementById('brushColor');
 const animNameInput = document.getElementById('animName'); 
@@ -10,80 +11,44 @@ const animationList = document.getElementById('animation-list');
 const effectAnim = document.getElementById('effect-anim');
 
 
-let animation = [new Animation()];
-let currentAnim = 0;
+
+let animation = [];
+let currentAnim = -1
 let currentFrame = -1;
 let ledStrip = new LedStrip(0, []);
 let toolContext = {
+    canvasWidth: 500,
+    canvasHeight: 500,
     active_tool: "select",
     moving: false,
     moving_led: undefined,
     painting: false,
     brushColor: [255, 0, 0],
-    activeLedStrip: undefined,
     select_mode: "start",
     select_start: {x:0,y:0},
     select_end: {x:0,y:0},
     led_selected: [],
-    current_group: -1
-}
-
-function addLedStrip() {
-    if(ledStrip == undefined)
-    {  
-        ledStrip = new LedStrip(0, []);
-    }
-    const ledCount = parseInt(document.getElementById('ledCount').value);
-    const spacing = Math.min(canvas.width / ledCount, 24);
-    const lastLedCount = ledStrip.ledCount;
-    for(i = 0;i < ledCount;i++) {
-        x = spacing*i+10;
-        y = 50;
-        ledStrip.push({x,y})
-    }
-    //updateLedList();
-    if(currentFrame < 0)
-        addFrame()
-    else
-        updateFrames(lastLedCount, ledCount, 1);
-}
-
-function deleteLeds() {
-    if (toolContext.led_selected.length > 0) {
-        // Create array of indices in descending order to avoid index shifting issues
-        const indices = [];
-        toolContext.led_selected.forEach(led => {
-            indices.push(led.index);
-        });
-        indices.sort((a, b) => b - a);
-        
-        // Remove LEDs from the strip
-        indices.forEach(index => {
-            ledStrip.remove(index);
-        });
-
-        // Update frames to remove the deleted LEDs
-        updateFrames(indices[indices.length - 1], indices.length, 0);
-        
-        // Clear selection
-        toolContext.led_selected = [];
-        toolContext.select_mode = "start";
-    }
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    current_group: -1,
+    frameOverIndex: -1,
+    scale: 1,
 }
 
 function loadAnimation(){
 
 }
 
-function updateFrames(index, length, action){
-    animation[currentAnim].frames.forEach(frame => {
-        if(action == 1)
-            frame.add(index, length);
-        else
-            frame.remove(index, length);
+function updateFrames(led, action){
+    animation.forEach((anim,animIndex) => {
+        anim.frames.forEach((frame, frameIndex)=> {
+            if(action == 'add')
+                frame.add(led.index);
+            else if(action == 'change')
+                frame.change(led.index, led.newIndex);
+            else
+                frame.remove(led.index, 1);
+        });
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+
 }
 
 function addFrame() {
@@ -91,54 +56,106 @@ function addFrame() {
     animation[currentAnim].frames.splice(currentFrame+1, 0, newFrame);
     currentFrame++;
     updateThumbnails();
-    drawFrame(newFrame);
+    drawFrame();
+}
+
+function getActiveTab(){
+    const activeTab = document.querySelector('.nav-link.active');
+    return activeTab.id;
 }
 
 function drawEmptyFrame(){
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(getActiveTab() == 'layout-tab'){
+        const ctx = canvasLayout.getContext('2d');
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+    }
+    else if(getActiveTab() == 'animation-tab'){
+        const ctx = canvasAnimation.getContext('2d');
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+    }
 }
 
-function drawFrame(frame) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawFrame(){
+    if(getActiveTab() == 'layout-tab'){
+        drawFrameLayout();
+    }
+    else if(getActiveTab() == 'animation-tab'){
+        drawFrameAnimation();
+    }
+}
 
-    if(frame){
+function drawFrameLayout() {
+    const ctx = canvasLayout.getContext('2d');
+    ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+
+    p = new Path2D();
+    ctx.strokeStyle = `rgb(157, 157, 157)`;
+    ctx.beginPath();
+    ledStrip.ledPath.forEach((point, index) => {
+        ctx.lineTo(point.x + 10, point.y + 10);
+    });
+    ctx.stroke();
+    ledStrip.ledPath.forEach((point, index) => {
         p = new Path2D();
-        ctx.strokeStyle = `rgb(157, 157, 157)`;
-        ctx.beginPath();
-        ledStrip.ledPath.forEach((point, index) => {
-            ctx.lineTo(point.x + 10, point.y + 10);
-        });
-        ctx.stroke();
+        if(ledStrip.isDisabled(index)){ 
+            ctx.fillStyle = `rgb(185, 185, 185)`;
+        }
+        else{
+            ctx.fillStyle = "black";
+        }
+        p.roundRect(point.x, point.y, 20, 20, 20);
+        ctx.fill(p);
+    });
+    if(toolContext.select_mode == "selecting")
+    {
+        width = toolContext.select_end.x - toolContext.select_start.x;
+        height = toolContext.select_end.y - toolContext.select_start.y;
+        ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
+        ctx.fillRect(toolContext.select_start.x, toolContext.select_start.y, width, height);
+    }
+    
+    toolContext.led_selected.forEach((led, index) =>{
+        p = new Path2D();
+        p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
+        ctx.strokeStyle = "rgb(89, 0, 255)";
+        ctx.stroke(p);              
+    });
+}
+
+function drawFrameAnimation() {
+    let frame = undefined;
+    const ctx = canvasAnimation.getContext('2d');
+    ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+    if(animation.length > 0 && animation[currentAnim].frames.length > 0)
+        frame = animation[currentAnim].frames[currentFrame];
+    p = new Path2D();
+    ctx.strokeStyle = `rgb(157, 157, 157)`;
+    ctx.beginPath();
+    ledStrip.ledPath.forEach((point, index) => {
+        ctx.lineTo(point.x + 10, point.y + 10);
+    });
+    ctx.stroke();
+    if(frame){
         frame.leds.forEach((color, index) => {
             p = new Path2D();
-            if(ledStrip.isDisabled(index)){ 
-                ctx.fillStyle = `rgb(185, 185, 185)`;
-            }
-            else{
+            if(!ledStrip.isDisabled(index)){
                 ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
+                ctx.fill(p);
             }
-            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
-            ctx.fill(p);
         });
     }
-    if(toolContext.active_tool == "draw"){
-        p = new Path2D();
-        ctx.beginPath();    
-        const ledPath = toolContext.activeLedStrip.ledPath;
-        ledPath.forEach((point, index) =>{
-            ctx.lineTo(point.x + 10, point.y + 10);
-        });
-        ctx.stroke();
-        ledPath.forEach((point, index) =>{
+    else{
+        ledStrip.ledPath.forEach((point, index) => {
             p = new Path2D();
-            p.roundRect(point.x, point.y, 20, 20, 40)
-            ctx.fillStyle = "black";
-            ctx.fill(p);
-        })
+            if(!ledStrip.isDisabled(index)){ 
+                ctx.fillStyle = "black";
+                p.roundRect(point.x, point.y, 20, 20, 20);
+                ctx.fill(p);
+            }
+        });
     }
-    else if(toolContext.select_mode == "selecting")
+    if(toolContext.select_mode == "selecting")
     {
         width = toolContext.select_end.x - toolContext.select_start.x;
         height = toolContext.select_end.y - toolContext.select_start.y;
@@ -146,16 +163,16 @@ function drawFrame(frame) {
         ctx.fillRect(toolContext.select_start.x,toolContext.select_start.y, width, height);
         
     }
-    else if(toolContext.select_mode == "selected")
-    {
-        toolContext.led_selected.forEach((led, index) =>{
+    toolContext.led_selected.forEach((led, index) =>{
+        if(!ledStrip.isDisabled(led.index)){
             p = new Path2D();
             p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
             ctx.strokeStyle = "rgb(89, 0, 255)";
             ctx.stroke(p);              
-        })
-    }
+        }
+    });
 }
+
 function duplicateFrame() {
     if (animation[currentAnim].frames.length > 0) {
         const currentFrameData = animation[currentAnim].frames[currentFrame];
@@ -166,7 +183,7 @@ function duplicateFrame() {
         animation[currentAnim].frames.splice(currentFrame + 1, 0, newFrame);    
         currentFrame++;
         updateThumbnails();
-        drawFrame(animation[currentAnim].frames[currentFrame]);
+        drawFrame();
     }
 }
 
@@ -175,7 +192,7 @@ function deleteFrame() {
         animation[currentAnim].frames.splice(currentFrame, 1); 
         if (currentFrame >= animation[currentAnim].frames.length)
             currentFrame--; 
-        drawFrame(animation[currentAnim].frames[currentFrame]); 
+        drawFrame(); 
         updateThumbnails();
         if(animation[currentAnim].frames.length == 0)
             drawEmptyFrame()
@@ -218,24 +235,30 @@ function dragFrameEnd(event) {
     
     currentFrame = newOrder.indexOf(currentFrame);
     updateThumbnails();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 // Update the updateThumbnails function to add drag and drop attributes
 function updateThumbnails() {
+    if(currentAnim == -1) return;
     frameThumbnails.innerHTML = '';
     animation[currentAnim].frames.forEach((_, index) => {
         const div = document.createElement('div');
+        div.classList.add("frame-thumbnail");
         // Create a small canvas for the thumbnail
         const thumbnailCanvas = document.createElement('canvas');
-        thumbnailCanvas.width = 80;
-        thumbnailCanvas.height = 40;
+        thumbnailCanvas.width = 60;
+        thumbnailCanvas.height = 60;
         const thumbnailCtx = thumbnailCanvas.getContext('2d');
         
         // Draw a scaled-down version of the frame
         const frame = animation[currentAnim].frames[index];
-        const scale = 0.1; // Scale factor for the thumbnail
-        
+        const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
+        const offsetX = (60 - scale*toolContext.canvasWidth)/2;
+        const offsetY = (60 - scale*toolContext.canvasHeight)/2;
+
+
+
         // Draw LEDs on the thumbnail canvas
         thumbnailCtx.fillStyle = "white";
         thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
@@ -245,8 +268,8 @@ function updateThumbnails() {
                 const color = frame.leds[ledIndex];
                 thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
                 thumbnailCtx.fillRect(
-                    point.x * scale, 
-                    point.y * scale, 
+                    offsetX + point.x * scale, 
+                    offsetY + point.y * scale, 
                     2, 2
                 );
             }
@@ -254,18 +277,29 @@ function updateThumbnails() {
         
         // Append the canvas to the div
         div.appendChild(thumbnailCanvas);
-        div.classList.add('frame-thumbnail');
         if(index == currentFrame)
             div.classList.add('frame-thumbnail-current');
-        //div.innerText = index + 1;
         div.draggable = true;
         div.addEventListener('dragstart', dragFrameStart);
         div.addEventListener('dragover', dragFrameOver);
         div.addEventListener('dragend', dragFrameEnd);
-        div.onclick = () => { currentFrame = index; updateThumbnails(); drawFrame(animation[currentAnim].frames[currentFrame]); };
+        div.onclick = () => { 
+            frameThumbnails.children.item(currentFrame).classList.remove('frame-thumbnail-current')
+            currentFrame = index;
+            frameThumbnails.children.item(currentFrame).classList.add('frame-thumbnail-current');
+            drawFrame(); 
+        };
         div.dataset.frameIndex = index;
         frameThumbnails.appendChild(div);
     });
+}
+
+
+function fixPointScale(event){
+    const rect = event.target.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return {x: x/toolContext.scale, y: y/ toolContext.scale}
 }
 
 function brush_mousedown(event) {
@@ -277,137 +311,119 @@ function originalBrushMousedown(event){ toolContext.painting = true; }
 function brush_mouseup(event){ toolContext.painting = false; }
 function brush_mousemove(event){ 
     if (!toolContext.painting) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
+    const {x, y} = fixPointScale(event);
     ledStrip.ledPath.forEach((point, index) => {
         if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
             animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
         }
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
-function move_mousedown(event){
-    saveState();
-    originalMoveMousedown(event);
-};
-
-function originalMoveMousedown(event){
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    if(toolContext.select_mode == "start")
-    {
-        ledStrip.ledPath.forEach((point, index) => {
-                if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                    toolContext.led_selected = [];
-                    toolContext.led_selected.push({index, x: point.x, y: point.y, point});
-                    toolContext.select_mode = "selected";
-                    toolContext.move_start = {x,y};
-                    toolContext.moving = true;
-                }
-        });
-        if(toolContext.moving == false)
-        {
-            toolContext.select_start = {x,y};
-            toolContext.select_end = {x,y};
-            toolContext.select_mode = "selecting";
-        }   
-    }
-    else if(toolContext.select_mode == "selected")
-    {
-        let found = false;
-        toolContext.led_selected.forEach((point, index) => {
+function brush_click(event){
+    const {x, y} = fixPointScale(event);
+    ledStrip.ledPath.forEach((point, index) => {
             if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
+                animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
+            }
+    });
+    drawFrame();
+}
+
+function draw_mousedown(event){
+}
+function draw_mouseup(event){}
+function draw_mousemove(event){}
+function draw_click(event){
+    const {x, y} = fixPointScale(event);
+    ledStrip.push({x,y})
+    drawFrame();
+}
+
+function select_mousedown(event){
+    const {x, y} = fixPointScale(event);
+    if(!event.ctrlKey)
+    {
+        const {point, index} = get_pressed_led({x,y});
+        if(index != -1){
+            if(toolContext.led_selected.findIndex(led => led.index === index) == -1)
+                toolContext.led_selected = []
+            if(toolContext.led_selected.length == 0)
+                toolContext.led_selected.push({index, x: point.x, y: point.y, point});
+            
+            if (toolContext.led_selected.findIndex(led => led.index === index) != -1)
+            {
                 toolContext.move_start = {x,y};
                 toolContext.moving = true;
-                found = true;
-            }
-        });
-        if(!found){
-            toolContext.led_selected = [];
-            ledStrip.ledPath.forEach((point, index) => {
-                    if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                        toolContext.led_selected = [];
-                        toolContext.led_selected.push({index, x: point.x, y: point.y, point});
-                        toolContext.select_mode = "selected";
-                        toolContext.move_start = {x,y};
-                        toolContext.moving = true;
-                    }
-            });
-            if(toolContext.led_selected.length == 0)
-            {
-                toolContext.select_start = {x,y};
-                toolContext.select_end = {x,y};
-                toolContext.select_mode = "selecting";
-                toolContext.moving = false;
+                saveState();
+                return;
             }
         }
     }
+    toolContext.select_start = {x,y};
+    toolContext.select_end = {x,y};
+    toolContext.select_mode = "selecting";
 }
-function move_mouseup(event){
-    if(toolContext.select_mode == "selecting")
-    {
-        start = {x:0, y:0};
-        end = {x:0, y:0};
-        start.x = Math.min(toolContext.select_start.x, toolContext.select_end.x)
-        start.y = Math.min(toolContext.select_start.y, toolContext.select_end.y)
-        end.x = Math.max(toolContext.select_start.x, toolContext.select_end.x)
-        end.y = Math.max(toolContext.select_start.y, toolContext.select_end.y)
-        toolContext.select_mode = "selected"
-        ledStrip.ledPath.forEach((point, index) => {
-                // Check if the point's bounding box intersects with the selection box
-                const pointBox = {
-                    left: point.x+5,
-                    right: point.x + 15,
-                    top: point.y + 5,
-                    bottom: point.y + 15
-                };
-                
-                const selectBox = {
-                    left: start.x,
-                    right: end.x,
-                    top: start.y,
-                    bottom: end.y
-                };
-                
-                // Check for intersection between the two boxes
-                const intersects = !(
-                    pointBox.right < selectBox.left ||
-                    pointBox.left > selectBox.right ||
-                    pointBox.bottom < selectBox.top ||
-                    pointBox.top > selectBox.bottom
-                );
-                
-                if (intersects) {
-                    toolContext.led_selected.push({index, x: point.x, y: point.y, point});
-                }
-        });
-        if(toolContext.led_selected.length == 0)
-        {
-            toolContext.select_mode = "start";
-            toolContext.led_selected = [];
+
+function getLedsInSelectedBox(selectBox)
+{
+    let result = []
+    ledStrip.ledPath.forEach((point, index) => { 
+        const pointBox = {
+            left: point.x+5,
+            right: point.x + 15,
+            top: point.y + 5,
+            bottom: point.y + 15
+        };
+        // Check for intersection between the two boxes
+        const intersects = !(
+            pointBox.right < selectBox.left ||
+            pointBox.left > selectBox.right ||
+            pointBox.bottom < selectBox.top ||
+            pointBox.top > selectBox.bottom
+        );
+        
+        if(intersects){
+            result.push({index, x: point.x, y: point.y, point});
         }
-    }
-    else if(toolContext.moving == true){
+    });
+    return result;
+}
+
+function select_mouseup(event){
+    if(toolContext.moving == true){
         toolContext.moving = false;
         toolContext.led_selected.forEach((led, index) =>{
             led.x = led.point.x;
             led.y = led.point.y; 
         });
     }
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    else if(toolContext.select_mode == "selecting"){
+        let box = {
+            left: Math.min(toolContext.select_start.x, toolContext.select_end.x),
+            top: Math.min(toolContext.select_start.y, toolContext.select_end.y),
+            right: Math.max(toolContext.select_start.x, toolContext.select_end.x),
+            bottom: Math.max(toolContext.select_start.y, toolContext.select_end.y)
+        }
+
+        if(!event.ctrlKey)
+            toolContext.led_selected = []
+        getLedsInSelectedBox(box).forEach((led => {
+            if(toolContext.led_selected.findIndex(l => l.index === led.index) == -1)
+                toolContext.led_selected.push(led);
+        }));
+        toolContext.select_mode = "none"
+    }
+    drawFrame();
 }
-function move_mousemove(event){
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    if(toolContext.moving == true)
+
+function select_mousemove(event) {
+    const {x, y} = fixPointScale(event);
+    if(toolContext.select_mode == "selecting")
     {
+        toolContext.select_end = {x,y};
+    }
+    else if(toolContext.moving == true){
         diffX = x - toolContext.move_start.x;
         diffY = y - toolContext.move_start.y;
         
@@ -416,134 +432,57 @@ function move_mousemove(event){
             led.point.y = led.y + diffY; 
         });
     }
-    else if(toolContext.select_mode == "selecting")
-    {
-        toolContext.select_end = {x,y};
-    }
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
-function brush_click(event){
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    ledStrip.ledPath.forEach((point, index) => {
-            if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                animation[currentAnim].frames[currentFrame][index] = [...toolContext.brushColor];
-            }
+function get_pressed_led(point){
+    let result = {point: undefined, index: -1};
+    ledStrip.ledPath.forEach((led, index) => {
+        if (point.x - led.x > 0 && point.x - led.x < 20 && point.y - led.y > 0 && point.y - led.y < 20) {
+            result = {point: led, index};
+        }
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
-}
-function move_click(event){
-   
-}
-
-function draw_mousedown(event){
-}
-function draw_mouseup(event){}
-function draw_mousemove(event){}
-function draw_click(event){
-    const rect = canvas.getBoundingClientRect();
-    x = event.clientX - rect.left;
-    y = event.clientY - rect.top;
-    toolContext.activeLedStrip.ledCount += 1;
-    toolContext.activeLedStrip.ledPath.push({x,y});
-    drawFrame(animation[currentAnim].frames[currentFrame]);
-}
-
-function select_mousedown(event){
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if(toolContext.select_mode == "selected" && !event.ctrlKey)
-    {
-        toolContext.led_selected = [];
-    }
-    toolContext.select_start = {x,y};
-    toolContext.select_end = {x,y};
-    toolContext.select_mode = "selecting";
-}
-
-function select_mouseup(event){
-    start = {x:0, y:0};
-    end = {x:0, y:0};
-    start.x = Math.min(toolContext.select_start.x, toolContext.select_end.x)
-    start.y = Math.min(toolContext.select_start.y, toolContext.select_end.y)
-    end.x = Math.max(toolContext.select_start.x, toolContext.select_end.x)
-    end.y = Math.max(toolContext.select_start.y, toolContext.select_end.y)
-    toolContext.select_mode = "selected"
-    ledStrip.ledPath.forEach((point, index) => {
-            
-        if(point.x > start.x && point.x < end.x && point.y > start.y && point.y < end.y){
-                toolContext.led_selected.push({index, x: point.x, y: point.y, point})
-            }
-    });
-    if(toolContext.led_selected.length == 0)
-    {
-        toolContext.select_mode = "start";
-        toolContext.led_selected = [];
-    }
-    drawFrame(animation[currentAnim].frames[currentFrame]);
-}
-
-function select_mousemove(event) {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if(toolContext.select_mode == "selecting")
-    {
-        toolContext.select_end = {x,y};
-        drawFrame(animation[currentAnim].frames[currentFrame]);
-    }
+    return result;
 }
 
 function select_click(event){
-    //toolContext.select_mode = "start";
-    //toolContext.led_selected = [];
-    //toolContext.active_tool = "move";
+    const {x, y} = fixPointScale(event);
+    const {point, index} = get_pressed_led({x,y})
     
-    if (event.ctrlKey) {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        
-        ledStrip.ledPath.forEach((point, index) => {
-            if (x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20) {
-                const existingIndex = toolContext.led_selected.findIndex(led => led.index === index);
-                if (existingIndex === -1) {
-                    toolContext.led_selected.push({index, x: point.x, y: point.y, point});
-                } else {
-                    toolContext.led_selected.splice(existingIndex, 1);
-                }
+    if(index != -1){
+        if (event.ctrlKey) {
+            const existingIndex = toolContext.led_selected.findIndex(l => l.index === index);
+            if (existingIndex === -1) {
+                toolContext.led_selected.push({index, x: point.x, y: point.y, point});
+            } else {
+                toolContext.led_selected.splice(existingIndex, 1);
             }
-        });
-        
-        if (toolContext.led_selected.length === 0) {
-            toolContext.select_mode = "start";
-        } else {
-            toolContext.select_mode = "selected";
         }
-        drawFrame(animation[currentAnim].frames[currentFrame]);
-        return;
-    }
-    else
-    {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        toolContext.select_mode = "selected";
-        ledStrip.ledPath.forEach((point, index) => {
-                if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                    toolContext.led_selected.push({index, x: point.x, y: point.y, point})
-                }
-        });
-        if(toolContext.led_selected.length == 0)
+        else
         {
-            toolContext.select_mode = "start";
-            toolContext.led_selected = [];
+            if(toolContext.led_selected.findIndex(l => l.index === index) == -1)
+                toolContext.led_selected.push({index, x: point.x, y: point.y, point});
         }
-        drawFrame(animation[currentAnim].frames[currentFrame]);
     }
+    drawFrame();
+}
+
+function addLedStrip() {
+    saveState();
+    if(ledStrip == undefined)
+    {  
+        ledStrip = new LedStrip(0, []);
+    }
+    const ledCount = parseInt(document.getElementById('ledCount').value);
+    const spacing = Math.min(toolContext.canvasWidth / ledCount, 24);
+    for(i = 0;i < ledCount;i++) {
+        x = spacing*i+10;
+        y = 50;
+        ledStrip.push({x,y})
+        updateFrames({index: ledStrip.length-1}, 'add');
+    }
+    drawFrame();
+    
 }
 
 function deleteSelectedLeds() {
@@ -551,83 +490,76 @@ function deleteSelectedLeds() {
     
     // Sort selected LEDs by index in descending order to avoid index shifting issues
     const sortedSelected = [...toolContext.led_selected].sort((a, b) => b.index - a.index);
-    
     // Remove LEDs from the path and colors array
     sortedSelected.forEach(led => {
         ledStrip.ledPath.splice(led.index, 1);
-        animation[currentAnim].frames[currentFrame].leds.splice(led.index, 1);
+        updateFrames({index: led.index}, 'del');
+        //animation[currentAnim].frames[currentFrame].leds.splice(led.index, 1);
     });
     
     // Reconnect remaining LEDs
     toolContext.led_selected = [];
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function insertLedsClick(event) {
     if (toolContext.active_tool !== "insert" || toolContext.led_selected.length === 0) return;
     
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const {x, y} = fixPointScale(event);
     
+    let {point, index} = get_pressed_led({x,y})
     // Check if click is on any LED
-    let targetIndex = -1;
-    ledStrip.ledPath.forEach((point, index) => {
-        if (x >= point.x && x <= point.x + 20 && 
-            y >= point.y && y <= point.y + 20) {
-            targetIndex = index;
-        }
-    });
     
-    if (targetIndex !== -1) {
+    if (index !== -1) {
         // Insert the selected LEDs at the target position
-        insertLedsAtPosition(targetIndex);
-        drawFrame(animation[currentAnim].frames[currentFrame]);
+        insertLedsAtPosition(index);
+        drawFrame();
     }
-    toolContext.active_tool = "move";
-    canvas.style.cursor = "default";
-    //canvas.removeEventListener('click', insertLedsClick);
+    toolContext.active_tool = "select";
+    canvasLayout.style.cursor = "default";
 }
 
 function insertSelectedLeds() {
     toolContext.active_tool = "insert";
-    canvas.style.cursor = "pointer";
-    canvas.addEventListener('click', insertLedsClick);
+    canvasLayout.style.cursor = "pointer";
 }
-
-
 
 function insertLedsAtPosition(position) {
     if (toolContext.led_selected.length === 0) return;
-    
+    let positionLed = ledStrip.ledPath[position];
     // Create a copy of selected LEDs
     const selectedLeds = [...toolContext.led_selected];
-    // Store the original colors before removing LEDs
-    const originalColors = {};
-    selectedLeds.forEach(led => {
-        originalColors[led.index] = [...animation[currentAnim].frames[currentFrame].leds[led.index]];
-    });
     // Remove selected LEDs from their current positions
+    let leds = [];
     const sortedSelected = selectedLeds.sort((a, b) => b.index - a.index);
     sortedSelected.forEach(led => {
         ledStrip.ledPath.splice(led.index, 1);
-        animation[currentAnim].frames[currentFrame].leds.splice(led.index, 1);
+        leds.push({index: led.index, newIndex: 0, action: 'del'});
     });
     
     // Insert LEDs at the new position
     const newLeds = [];
-    const colors = [];
     selectedLeds.forEach(led => {
         newLeds.push({
             x: led.x,
             y: led.y
         });
-        colors.push(originalColors[led.index]);
     });
-    
+    position = ledStrip.ledPath.findIndex((led) => led === positionLed);
     ledStrip.ledPath.splice(position, 0, ...newLeds);
-    animation[currentAnim].frames[currentFrame].leds.splice(position, 0, ...colors);
     
+    leds.forEach((led, index) => {
+        led.newIndex = position + index;
+    });
+    animation.forEach((anim,animIndex) => {
+        anim.frames.forEach((frame, frameIndex)=> {
+            colors = [];
+            leds.forEach((led,index) => colors.push(frame.leds[led.index]));
+            leds.forEach((led,index) => frame.remove(led.index, 1));
+            leds.forEach((led,index) => frame.add(led.newIndex, 1));
+            leds.forEach((led,index) => frame.setColor(led.newIndex, colors[index]));
+        });
+    });
     // Update selected LEDs with new indices
     toolContext.led_selected.forEach((led, i) => {
         const newIndex = ledStrip.ledPath.findIndex(p => p.x === led.x && p.y === led.y);
@@ -635,35 +567,28 @@ function insertLedsAtPosition(position) {
         led.point = ledStrip.ledPath[newIndex];
     });
     
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function duplicateSelectedLeds() {
     if (toolContext.led_selected.length === 0) return;
     
-    // Get the last LED position
-    const lastLed = ledStrip.ledPath[ledStrip.ledPath.length - 1];
-    
-    // Calculate offset to place duplicated LEDs after the last LED
-    const offsetX = lastLed.x;
-    const offsetY = lastLed.y;
-    
     // Create new LEDs with offset
     const newLeds = [];
-    const colors = [];
     toolContext.led_selected.forEach(led => {
         newLeds.push({
             x: led.x,
             y: led.y,
         });
-        colors.push(animation[currentAnim].frames[currentFrame].leds[led.index]);
     });
     
     // Add new LEDs to the path
     ledStrip.ledPath.push(...newLeds);
+    let position = ledStrip.ledCount;
     ledStrip.ledCount += newLeds.length;
-    animation[currentAnim].frames[currentFrame].leds.push(...colors);
     
+    newLeds.forEach((led,index) => updateFrames({index: position+index}, 'add'));
+
     // Update selected LEDs to the newly duplicated ones
     toolContext.led_selected = [];
     newLeds.forEach((led, index) => {
@@ -674,38 +599,82 @@ function duplicateSelectedLeds() {
             point: led
         });
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 tool_callbacks = {
         brush: {mousedown: brush_mousedown, mouseup: brush_mouseup, mousemove: brush_mousemove, click: brush_click },
-        move: {mousedown: move_mousedown, mouseup: move_mouseup, mousemove: move_mousemove, click: move_click},
         draw: {mousedown: draw_mousedown, mouseup: draw_mouseup, mousemove: draw_mousemove, click: draw_click},
         select: {mousedown: select_mousedown, mouseup: select_mouseup, mousemove: select_mousemove,  click: select_click },
         insert: {mousedown: insert_mousedown, mouseup: insert_mouseup, mousemove: insert_mousemove, click: insert_click }
     }
 
-canvas.addEventListener('mousedown', (event) => {
-   tool_callbacks[toolContext.active_tool].mousedown(event)
-});
+
 
 function insert_mousedown(event){}
 function insert_mouseup(event){}
 function insert_mousemove(event){}
-function insert_click(){
-    insertLedsClick
+function insert_click(event){
+    insertLedsClick(event);
 }
 
-canvas.addEventListener('mouseup', () => {
+canvasLayout.addEventListener('mousedown', (event) => {
+    tool_callbacks[toolContext.active_tool].mousedown(event)
+ });
+
+canvasLayout.addEventListener('mouseup', () => {
     tool_callbacks[toolContext.active_tool].mouseup(event)
 });
 
-canvas.addEventListener('click', (event) => {
+canvasLayout.addEventListener('click', (event) => {
     tool_callbacks[toolContext.active_tool].click(event)
 });
 
-canvas.addEventListener('mousemove', (event) => {
+canvasLayout.addEventListener('mousemove', (event) => {
     tool_callbacks[toolContext.active_tool].mousemove(event)
+});
+
+canvasAnimation.addEventListener('mousedown', (event) => {
+    tool_callbacks[toolContext.active_tool].mousedown(event)
+ });
+
+ canvasAnimation.addEventListener('mouseup', () => {
+    tool_callbacks[toolContext.active_tool].mouseup(event)
+});
+
+canvasAnimation.addEventListener('click', (event) => {
+    tool_callbacks[toolContext.active_tool].click(event)
+});
+
+canvasAnimation.addEventListener('mousemove', (event) => {
+    tool_callbacks[toolContext.active_tool].mousemove(event)
+});
+
+function zoom(event){
+    event.preventDefault();
+        toolContext.scale += event.deltaY * -0.01;
+
+        let scaleMin = Math.min(507/toolContext.canvasHeight, 607/toolContext.canvasWidth)
+        // Restrict scale
+        toolContext.scale = Math.min(Math.max(scaleMin, toolContext.scale), 1);
+
+        // Apply scale transform
+        canvasLayout.style.zoom = `${toolContext.scale}`;
+        canvasAnimation.style.zoom = `${toolContext.scale}`;
+}
+
+
+canvasAnimation.addEventListener('wheel', (event) => {
+    if(event.ctrlKey){
+        zoom(event);     
+    }
+});
+
+canvasLayout.addEventListener('wheel', (event) => {
+    if(event.ctrlKey){
+        zoom(event);
+        
+    }
 });
 
 brushColorInput.addEventListener('input', () => {
@@ -715,39 +684,17 @@ brushColorInput.addEventListener('input', () => {
 
 function paint_tool(){ toolContext.active_tool = "brush"}
 
-function move_tool(){ toolContext.active_tool = "move"}
-
 function select_tool(){ toolContext.active_tool = "select"}
 
 function draw_tool(){ 
-    if(toolContext.active_tool != "draw")
-    {
-        document.getElementById("drawButton").innerHTML = "finish drawing";
-        toolContext.active_tool = "draw"
-        let ledPath = [];
-        let ledCount = 0
-        toolContext.activeLedStrip = { ledCount, ledPath }
-        if(currentFrame < 0)
-            addFrame();
-    }
-    else
-    {
-        document.getElementById("drawButton").innerHTML = "draw";
-        toolContext.active_tool = "move";
-        const currentIndex = ledStrip.ledCount;
-        toolContext.activeLedStrip.ledPath.forEach((point, index) => {
-            ledStrip.push(point);
-        });
-        updateFrames(currentIndex, toolContext.activeLedStrip.ledCount, 1)
-        toolContext.activeLedStrip = undefined;
-    }
+    toolContext.active_tool = "draw"
 }
 
 function paintSelected(){
     toolContext.led_selected.forEach((led, index) =>{
         animation[currentAnim].frames[currentFrame].leds[led.index] = [...toolContext.brushColor];
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function rotate90Deg(center, point){
@@ -759,11 +706,10 @@ function rotate90Deg(center, point){
         rotate_angle = 90;
     }
     let distance = Math.sqrt(Math.pow(point.x - center.x,2)+Math.pow(point.y - center.y,2));
-    let angle = Math.atan2((center.y - point.y),(center.x - point.x));
-    angle = angle - rotate_angle*Math.PI/180; 
+    let angle = Math.atan2((point.y - center.y),(point.x - center.x));
+    angle = angle + rotate_angle*Math.PI/180; 
     point.x = center.x + distance*Math.cos(angle);
     point.y = center.y + distance*Math.sin(angle);
-    console.log(point)
 }
 
 function rotateTool(){
@@ -774,21 +720,18 @@ function rotateTool(){
     });
     center.x = center.x/toolContext.led_selected.length;
     center.y = center.y/toolContext.led_selected.length;
-    console.log(center)
     toolContext.led_selected.forEach((led, index) =>{
-        rotate90Deg(center, toolContext.led_selected[index].point);
+        rotate90Deg(center, led.point);
         rotate90Deg(center, led);
-
-        //animation[currentAnim].frames[currentFrame].leds[led.index] = [...toolContext.brushColor];
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function erase_tool(){
     toolContext.led_selected.forEach((led, index) =>{
         animation[currentAnim].frames[currentFrame].leds[led.index] = [0,0,0];
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function toggleSelectedLeds(){
@@ -798,7 +741,7 @@ function toggleSelectedLeds(){
         else
             ledStrip.disable(led.index);
     });
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function saveLedsConfig(){
@@ -853,8 +796,10 @@ function loadObjectFromJson(file, callback) {
 
 function clearGroups()
 {
-    animation[currentAnim].groups = [];
-    toolContext.current_group = -1;
+    animation[currentAnim].groups.splice(toolContext.current_group, 1);
+    toolContext.current_group -= 1;
+    if(toolContext.current_group == -1 && animation[currentAnim].groups.length > 0)
+        toolContext.current_group = 0;
     updateGroupList();
 }
 
@@ -866,12 +811,10 @@ function addGroup(){
 }
 
 function selectGroup(index){
-    group = animation[currentAnim].groups[index];
+    let group = animation[currentAnim].groups[index];
     toolContext.current_group = index;
     toolContext.led_selected = [...group.ledList]
     toolContext.select_mode = "selected";
-    updateGroupList();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
 }
 
 function removeGroup(index){
@@ -883,22 +826,71 @@ function removeGroup(index){
     updateGroupList();
 }
 
+function dragGroupStart(event) {
+    const frameIndex = parseInt(event.target.innerText) - 1;
+    event.dataTransfer.setData('text/plain', frameIndex);
+    event.target.classList.add('dragging');
+}
+
+function dragGroupOver(event) {
+    event.preventDefault();
+    const draggedGroup = document.querySelector('.dragging');
+    const groups = document.querySelectorAll('.led-group');
+    const targetGroup = event.target.closest('.led-group');
+    
+    if (!targetGroup || targetGroup === draggedGroup) return;
+
+    const targetIndex = Array.from(groups).indexOf(targetGroup);
+    const draggedIndex = Array.from(groups).indexOf(draggedGroup);
+    
+    if (targetIndex > draggedIndex) {
+        targetGroup.parentNode.insertBefore(draggedGroup, targetGroup.nextSibling);
+    } else {
+        targetGroup.parentNode.insertBefore(draggedGroup, targetGroup);
+    }
+}
+
+function dragGroupEnd(event) {
+    event.target.classList.remove('dragging');
+    const groups = document.querySelectorAll('.led-group');
+    
+    const newOrder = Array.from(groups).map(thumb => parseInt(thumb.dataset.groupIndex));
+    
+    // Reorder frames in animation
+    const newGroups = newOrder.map(index => animation[currentAnim].groups[index]);
+    animation[currentAnim].groups = newGroups;
+    
+    toolContext.current_group = newOrder.indexOf(toolContext.current_group);
+    updateGroupList();
+    drawFrame();
+}
+
 function updateGroupList() {
+    if(currentAnim == -1) return;
     ledGroupList.innerHTML = '';
     animation[currentAnim].groups.forEach((group, index) => {
-        const div = document.createElement('div');
-        div.classList.add('led-group-item');
+        const li = document.createElement('li');
+        li.classList.add('list-group-item');
+        li.classList.add('led-group');
         if(toolContext.current_group == index)
-            div.classList.add('selected-item');
-        div.innerHTML = `<input id=Group${index} type="checkbox"/>
+            li.classList.add('selected-item');
+        li.innerHTML = `<input id=Group${index} type="checkbox"/>
             Group ${index + 1} (${group.ledCount} LEDs)`;
-            ledGroupList.appendChild(div);
-        div.addEventListener('click', (event) => {
+        ledGroupList.appendChild(li);
+        li.addEventListener('click', (event) => {
             if (event.target.type === "checkbox") {
                 return;
             }
+            ledGroupList.children.item(toolContext.current_group).classList.remove('selected-item')
             selectGroup(index);
+            ledGroupList.children.item(toolContext.current_group).classList.add('selected-item')
+            drawFrame();
         });
+        li.draggable = true;
+        li.addEventListener('dragstart', dragGroupStart);
+        li.addEventListener('dragover', dragGroupOver);
+        li.addEventListener('dragend', dragGroupEnd);
+        li.dataset.groupIndex = index;
         document.getElementById(`Group${index}`).checked = animation[currentAnim].groups[index].selected;
         document.getElementById(`Group${index}`).addEventListener('click',()=>{
             animation[currentAnim].groups[index].selected = document.getElementById(`Group${index}`).checked;
@@ -907,17 +899,18 @@ function updateGroupList() {
 }
 
 function createAnimation(){
-    name = animNameInput.value;
+    let name = animNameInput.value;
     animation.push(new Animation())
     currentAnim = animation.length - 1;
     animation[currentAnim].name = name;
     updateAnimationList();
 }
 
-function deleteAnimation(index){
-    animation.splice(index, 1);
-    if(currentAnim >= index)
-        currentAnim -= 1;
+function deleteAnimation(){
+    animation.splice(currentAnim, 1);
+    currentAnim -= 1;
+    if(currentAnim == -1 && animation.length > 0)
+        currentAnim = 0;
     updateAnimationList()
 }
 
@@ -925,21 +918,46 @@ function updateAnimationList() {
     animationList.innerHTML = '';
      
     animation.forEach((anim, index) => {
-        const div = document.createElement('div');
-        div.classList.add('animation-item');
-        div.innerHTML = `<input id=animation${index} type="checkbox"/>
-            ${anim.name}`;
+        const li = document.createElement('li');
+        li.classList.add('list-group-item');
+        li.innerHTML = `<input id=animation${index} type="checkbox"/>
+            <label id=animLabel${index}>${anim.name}</label>
+            <input type="text" class="form-control hidden-input" id="animLabelEdit${index}">`;
         if(index == currentAnim)
         {
-            div.classList.add('selected-item');
+            li.classList.add('selected-item');
         }
-        animationList.appendChild(div);
-        div.addEventListener('click', (event) =>{
+        animationList.appendChild(li);
+        li.addEventListener('click', (event) =>{
             if (event.target.type === "checkbox") {
                 return;
             }
+            animationList.children.item(currentAnim).classList.remove('selected-item');
+            li.classList.add('selected-item');
             selectAnimation(index);
         });
+        let label = document.getElementById(`animLabel${index}`)
+        let input = document.getElementById(`animLabelEdit${index}`)
+        label.addEventListener('dblclick', () => {
+            label.classList.add("hidden-input")
+            input.value = label.textContent;
+            input.classList.remove("hidden-input")
+            input.focus();
+        });
+
+        const save = () => {
+            label.textContent = input.value;
+            label.classList.remove("hidden-input")
+            input.classList.add("hidden-input")
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                input.blur();
+            }
+        });
+      
         document.getElementById(`animation${index}`).checked = animation[index].selected;
         document.getElementById(`animation${index}`).addEventListener('click',()=>{
             animation[index].selected = document.getElementById(`animation${index}`).checked;
@@ -952,10 +970,9 @@ function selectAnimation(index){
     currentAnim = index;
     currentFrame = 0;
     toolContext.current_group = -1;
-    updateAnimationList();
     updateThumbnails();
     updateGroupList();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
 }
 
 function loadAnimationFromFile(event){
@@ -1007,7 +1024,7 @@ function createAnimationOnGroup() {
     }
     
     // Update display
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
     updateThumbnails();
 }
 
@@ -1036,8 +1053,6 @@ function rainbowColorScheme(frameIndex, totalFrames) {
         Math.round(startColor[2] + (endColor[2] - startColor[2]) * progress)
     ];
 }
-
-
 
 function fadeColorScheme(frameIndex, totalFrames) {
     const startColor = hexToRgb(document.getElementById('startColor').value);
@@ -1083,9 +1098,37 @@ function hslToRgb(h, s, l) {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+function playAnimation() {
+    if (animation[currentAnim].frames.length === 0) return;
+    playing = true;
+    const interval = 1000 / 5;
+    const saveCurrentFrame = currentFrame;
+    currentFrame = 0;
+    const playInterval = setInterval(() => {
+        if (!playing || currentFrame >= animation[currentAnim].frames.length) {
+            clearInterval(playInterval);
+            playing = false;
+            currentFrame = saveCurrentFrame;
+            drawFrame();
+            updateThumbnails();
+            return;
+        }
+        drawFrame();
+        updateThumbnails();
+        currentFrame++;
+    }, interval);
+}
+
 // Add keyboard shortcuts for toolbar buttons
 document.addEventListener('keydown', function(event) {
    
+    if (event.ctrlKey && event.key === 'z') {
+        undo();
+        event.preventDefault();
+    } else if (event.ctrlKey && (event.key === 'y' || (event.shiftKey && event.key === 'z'))) {
+        redo();
+        event.preventDefault();
+    }
     if (event.ctrlKey || event.altKey || event.metaKey) {
         return;
     }
@@ -1131,12 +1174,14 @@ document.addEventListener('keydown', function(event) {
             }
             break;
         case 'tab':
-            if (event.shiftKey) {
-                if(toolContext.current_group > 0)
-                    selectGroup(toolContext.current_group - 1);
-            } else {
-                if(toolContext.current_group < animation[currentAnim].groups.length - 1)
-                    selectGroup(toolContext.current_group + 1);
+            if(currentAnim != -1){ 
+                if (event.shiftKey) {
+                    if(toolContext.current_group > 0)
+                        selectGroup(toolContext.current_group - 1);
+                } else {
+                    if(toolContext.current_group < animation[currentAnim].groups.length - 1)
+                        selectGroup(toolContext.current_group + 1);
+                }
             }
             event.stopPropagation();
             break;
@@ -1171,6 +1216,7 @@ const MAX_HISTORY = 50; // Maximum number of states to keep in history
 
 function saveState() {
     // Create a deep copy of the current state
+    console.log("data saved")
     const state = {
         animation: JSON.parse(JSON.stringify(animation)),
         ledStrip: JSON.parse(JSON.stringify(ledStrip)),
@@ -1218,7 +1264,7 @@ function undo() {
     toolContext.led_selected = [];
     // Update UI
     updateThumbnails();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
     updateGroupList();
     updateUndoRedoButtons();
 }
@@ -1247,7 +1293,7 @@ function redo() {
     toolContext.led_selected = [];
     // Update UI
     updateThumbnails();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
+    drawFrame();
     updateGroupList();
     updateUndoRedoButtons();
 }
@@ -1265,45 +1311,6 @@ function updateUndoRedoButtons() {
     }
 }
 
-// Add undo/redo buttons to toolbar
-function addUndoRedoButtons() {
-    const toolbar = document.getElementById('toolbar');
-    if (!toolbar) return;
-    
-    // Create undo button
-    const undoButton = document.createElement('button');
-    undoButton.id = 'undo-button';
-    undoButton.innerHTML = '↩️';
-    undoButton.title = 'Ctrl+Z - Undo';
-    undoButton.disabled = true;
-    undoButton.addEventListener('click', undo);
-    
-    // Create redo button
-    const redoButton = document.createElement('button');
-    redoButton.id = 'redo-button';
-    redoButton.innerHTML = '↪️';
-    redoButton.title = 'Ctrl+Y - Redo';
-    redoButton.disabled = true;
-    redoButton.addEventListener('click', redo);
-    
-    // Add buttons to toolbar
-    toolbar.appendChild(undoButton);
-    toolbar.appendChild(redoButton);
-}
-
-// Add keyboard shortcuts for undo/redo
-document.addEventListener('keydown', function(event) {
-    if (event.ctrlKey && event.key === 'z') {
-        undo();
-        event.preventDefault();
-    } else if (event.ctrlKey && (event.key === 'y' || (event.shiftKey && event.key === 'z'))) {
-        redo();
-        event.preventDefault();
-    }
-});
-
-// Initialize undo/redo functionality
-addUndoRedoButtons();
 
 // Modify existing functions to save state before making changes
 const originalAddFrame = addFrame;
@@ -1368,18 +1375,6 @@ removeGroup = function(index) {
     originalRemoveGroup(index);
 };
 
-const originalSelectGroup = selectGroup;
-selectGroup = function(index) {
-    saveState();
-    originalSelectGroup(index);
-};
-
-const originalSelectAnimation = selectAnimation;
-selectAnimation = function(index) {
-    saveState();
-    originalSelectAnimation(index);
-};
-
 const originalLoadAnimationFromFile = loadAnimationFromFile;
 loadAnimationFromFile = function(event) {
     saveState();
@@ -1398,10 +1393,44 @@ toggleSelectedLeds = function() {
     originalToggleSelectedLeds();
 };
 
+window.addEventListener('load', function () {
+    const container = document.querySelector('.canvas-container');
+    const width = document.getElementById('canvasWidth');
+    const height = document.getElementById('canvasHeight')
+    
+
+    width.value = Math.floor(container.clientWidth)-1
+    height.value = Math.floor(container.clientHeight)-1
+    toolContext.canvasHeight = height.value;
+    toolContext.canvasWidth = width.value;
+    document.getElementById("ledCanvasLayout").width = width.value;
+    document.getElementById("ledCanvasLayout").height = height.value;
+    document.getElementById("ledCanvasAnimation").width = width.value;
+    document.getElementById("ledCanvasAnimation").height = height.value;
+  });
+
+function canvasDImChange(){
+    const width = parseInt(document.getElementById('canvasWidth').value);    
+    const height = parseInt(document.getElementById('canvasHeight').value);
+    ledStrip.setDim(width, height);
+    toolContext.canvasHeight = height;
+    toolContext.canvasWidth = width;
+    document.getElementById("ledCanvasLayout").width = width;
+    document.getElementById("ledCanvasLayout").height = height;
+    document.getElementById("ledCanvasAnimation").width = width;
+    document.getElementById("ledCanvasAnimation").height = height;
+}
 
 
+function toggleLayoutSidebar() {
+    document.getElementById('layout-sidebar').classList.toggle('collapsed');
+    document.getElementById('layout-close-sidebar').classList.toggle('collapsed');
+}
 
-
+function toggleAnimationSidebar() {
+    document.getElementById('animation-sidebar').classList.toggle('collapsed');
+    document.getElementById('animation-close-sidebar').classList.toggle('collapsed');
+}
 
 
 

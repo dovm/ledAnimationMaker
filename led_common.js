@@ -15,6 +15,19 @@ class frame{
         this.leds.splice(index, 0, ...new Array(length).fill([0,0,0]));
     }
 
+    change(currentIndex, newIndex)
+    {
+        let ledColor = this.leds[currentIndex];
+        this.remove(currentIndex, 1);
+        this.add(newIndex, 1);
+        this.setColor(newIndex, ledColor);
+    }
+
+    setColor(index, color)
+    {
+        this.leds[index] = color;
+    }
+
     remove(index, length)
     {
         this.leds.splice(index, length);
@@ -50,13 +63,81 @@ class Animation{
         return this;
     }
 }
+/*
+class Led{
+    constructor(x,y,pos){
+        this.x = x;
+        this.y = y;
+        this.pos = pos;;
+        this.isEnable = true;
+    }
+}
 
+class LedStrip {
+    constructor(length, leds)
+    {
+        this.leds = leds;
+        this.ledsPosMap = {};
+        this.leds.foreach((led, index) => {
+            this.ledsPosMap[led.pos] = led;
+        });
+    }
+
+    add(led)
+    {
+        this.ledCount += 1;
+        this.ledPath.splice(index, 0, point);
+        this.leds.splice(index, 0, false);
+    }
+
+    length(){return this.leds.length};
+
+    remove(pos){
+        this.ledCount -= 1;
+        this.ledPath.splice(index, 1);
+        this.leds.splice(index, 1);
+    }
+
+    push(point){
+        this.ledCount += 1;
+        this.ledPath.push(point);
+        this.leds.push(false);
+    }
+
+    fromJson(obj){
+        obj.ledPath.forEach((led, index) => {
+            this.push(led);
+        });
+        return this;
+    }
+
+    disable(index){
+        this.leds[index].isEnable = false;
+    }
+
+    enable(index){
+        this.leds[index].isEnable = true;
+    }
+
+    isEnable(index){
+        return this.leds[index].isEnable;
+    }
+}
+*/
 class LedStrip {
     constructor(length, ledPath)
     {
         this.ledCount = length;
         this.ledPath = ledPath;
         this.leds = new Array(length).fill(false);
+        this.width = 600;
+        this.height = 600;
+    }
+
+    setDim(width, height)
+    {
+        this.width = width;
+        this.height = height;
     }
 
     add(index, point)
@@ -104,24 +185,9 @@ class LedStrip {
 
 
 
-function prevFrame() { if (currentFrame > 0) { drawFrame(animation[currentAnim].frames[--currentFrame]); updateThumbnails();} }
-function nextFrame() { if (currentFrame < animation[currentAnim].frames.length - 1) { drawFrame(animation[currentAnim].frames[++currentFrame]); updateThumbnails(); }  }
-function playAnimation() {
-    if (animation[currentAnim].frames.length === 0) return;
-    playing = true;
-    let i = 0;
-    const interval = 1000 / 5;
-    const playInterval = setInterval(() => {
-        if (!playing || i >= animation[currentAnim].frames.length) {
-            clearInterval(playInterval);
-            playing = false;
-            drawFrame(animation[currentAnim].frames[currentFrame]);
-            return;
-        }
-        drawFrame(animation[currentAnim].frames[i]);
-        i++;
-    }, interval);
-}
+function prevFrame() { if (currentFrame > 0) { --currentFrame; drawFrame(); updateThumbnails();} }
+function nextFrame() { if (currentFrame < animation[currentAnim].frames.length - 1) { ++currentFrame; drawFrame(); updateThumbnails(); }  }
+
 
 function exportAnimation() {
     if (animation[currentAnim].frames.length === 0) return;

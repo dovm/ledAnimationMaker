@@ -1,101 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LED Animation Editor</title>
+    <link href="bootstrap-5.3.6-dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="fa.min.css" rel="stylesheet">
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">-->
     <style>
-        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        #container { display: flex; flex: 1; background-color: #f0f0f0; }
-        #sidebar { width: 250px; padding: 10px; border-right: 1px solid black; }
-        #toolbar {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 10px;
-                    background-color: #f0f0f0;
-                    border-bottom: 1px solid #ddd;
+        body {
+            display: flex;
+            overflow: hidden;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .tab_container {
+            background-color: #f0f0f0;
+            transition: margin-left 0.3s;
+            
+        }
+
+        .right-sidebar{
+            margin-left: 5px;
+            padding: 5px;
+            border-left: 1px solid black;
+            flex-shrink: 0;
+        }
+
+        .sidebar {
+            width: 250px;
+            padding: 5px;
+            border-right: 1px solid black;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            padding: 0px;
+            width: 0;
+            overflow: hidden;
+            border-right: 0px solid black;
+        }
+
+        .close-sidebar {
+            width: 0px;
+            overflow: hidden;
+            
+        }
+
+        .close-sidebar.collapsed {
+            width: fit-content;
+            padding: 5px;
+            border-right: 1px solid black;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .toolbar {
+            align-items: center;
+            gap: 10px;
+            margin-left: 5px;
+            background-color: #f0f0f0;
         }
 
         #toolbar label {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        #toolbar input[type="number"],
-        #toolbar input[type="color"] {
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .canvas-container {
+            border: 1px solid black;
+            display: block;
+            margin-left: 5px;
+            justify-content: left;
+            align-items: center;
+            flex-grow: 1;
+            overflow: auto;
+            box-sizing: border-box;
+        }
+
+        #timeline-toolbar {
+            background-color: #f0f0f0;
+            border-bottom: 1px solid black;
+            display: block;
+            align-items: center;
+            padding: 10px;
+            min-height: 120px;
+        }
+
+        .effect-control {
+            margin: 5px 0;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 50px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .frame-thumbnail {
+            position: relative;
+            display: inline-block;
             width: 60px;
-            height: 24px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            /* only a small part shown */
+            height: 60px;
+            margin-left: -50px;
+            /* overlap */
+            background-color: #ddd;
+            overflow: hidden;
+            vertical-align: top;
+            border-bottom-left-radius: 5px;
+            border-top-left-radius: 5px;
+            border: 2px solid black;
+            z-index: 1;
         }
 
-                
-        #canvas-container { flex: 1; overflow: auto; display: block; margin-left: 5px; justify-content: left; align-items: center; }
-        canvas { border: 1px solid black; cursor: crosshair; }
-        #timeline { background-color: #f0f0f0; min-height: 100px; border-bottom: 1px solid black; display: block; align-items: center; padding: 10px; overflow-x: auto; }
-        .effect-control { margin: 5px 0; }
-        .frame-thumbnail { width: 82px; height: 42px; padding: 1px; border: 1px solid black; margin: 5px; display: inline-block; cursor: pointer; }
-        .frame-thumbnail-current{ border: 2px solid red; }
-        #led-group-list { overflow-y: auto; max-height: 300px;}    
-        .led-group-item { 
-            border: 1px solid #444; 
-            border-radius: 4px; 
-            padding: 3px; 
-            display: flex;  
-            margin: 5px 0; 
+        .frame-thumbnail:hover {
+            margin-right: 48px;
         }
-        .animation-item { 
-            border: 1px solid #444; 
-            border-radius: 4px; 
-            padding: 3px; 
-            display: flex; 
-            margin: 5px 0; 
+
+        .frame-thumbnail:hover canvas {
+            transform: translateX(0);
+            z-index: 10;
         }
+
+        .timeline-wrapper {
+            display: flex;
+            gap: 0;
+        }
+
+        .frame-thumbnail-current {
+            border: 2px solid red;
+            padding: 0px;
+        }
+
+        #led-group-list {
+            overflow-y: auto;
+        }
+
         .selected-item {
-            border: 2px solid blue;
+            background-color: aquamarine;
         }
 
         .list-item-label {
-            align-content: center; 
+            align-content: center;
             margin-left: 5px;
         }
+
         .multiple-input-box {
-            border: 1px solid black; 
+            border: 1px solid black;
             padding: 3px;
         }
+
         .select-input {
             margin: 2px;
             width: 100px;
         }
+
         .box-wrapper {
             position: relative;
-            margin: 5px;
             margin-top: 1rem;
-            padding: 8px;
-            border: 1px solid #444;
-            border-radius: 4px;
+            padding: 12px;
+            padding-top: 16px;
+            outline: 1px solid #444;
+            outline-offset: -0.4em;
             font-weight: bold;
             color: #444;
         }
+
         .box-label {
             position: absolute;
-            top: -0.8em;
+            top: -0.4em;
             left: 1rem;
             background: #f0f0f0;
             padding: 0 0.5em;
             font-weight: bold;
             color: #444;
         }
+
         .button-icon-with-text {
             display: flex;
             align-items: center;
             gap: 5px;
         }
-        
+
         .hidden-input {
-          display: none;
+            display: none;
         }
 
         .icon-img {
@@ -117,241 +222,289 @@
             display: inline;
         }
 
+        .canvas-default-size {
+            display: block;
+            
+        }
+        
     </style>
 </head>
-<body>
-    <div id="timeline">
-        <label class="icon-label" for="prev-frame">
-            <img src="icons/chevron-left-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/chevron-left-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="prevFrame()" id="prev-frame" class="hidden-input"></button>
-        <label class="icon-label" for="next-frame">
-            <img src="icons/chevron-right-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/chevron-right-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="nextFrame()" id="next-frame" class="hidden-input"></button>
-        <label class="icon-label" for="add-frame">
-            <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="addFrame()" id="add-frame" class="hidden-input"></button>
-        <label class="icon-label" for="del-frame">
-            <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="deleteFrame()" id="del-frame" class="hidden-input"></button>
-        <label class="icon-label" for="dup-frame">
-            <img src="icons/duplicate-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/duplicate-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="duplicateFrame()" id="dup-frame" class="hidden-input"></button>
-        <label class="icon-label" for="play-animation">
-            <img src="icons/play-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="playAnimation()" id="play-animation" class="hidden-input"></button>
-        <label class="icon-label" for="export-animation">
-            <img src="icons/save-floppy-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-            <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-        </label>
-        <button onclick="exportAnimation()" id="export-animation" class="hidden-input"></button>
-        <div id="frame-thumbnails"></div>
-    </div>
-    <div id="container">
-        
-        <div id="sidebar">
-            <div class="box-wrapper">
-                <span class="box-label">File Operations</span>
-                <div>
-                    <label class="icon-label">
-                        <input type="file" class="hidden-input" accept=".json" onchange="loadLedsConfig(event)">
-                        <img src="icons/upload-svgrepo-com.svg" alt="Upload" class="icon-img default-icon" />
-                        <img src="icons/upload-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <label class="icon-label" onclick="saveLedsConfig()">
-                        <img src="icons/save-floppy-svgrepo-com.svg" alt="Save" class="icon-img default-icon" />
-                        <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                </div>
-            </div>
-            <div class="box-wrapper">
-                <span class="box-label">LED Strip Settings</span>
-                    <label class="icon-label" onclick="addLedStrip()">
-                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Add" class="icon-img default-icon" />
-                    <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    <span class="list-item-label">Add LED Strip</span>
-                </label>
-                <br>
-                <label>LED Count: 
-                    <input type="number" id="ledCount" class="select-input" min="1" max="100" value="20">
-                </label>
-            <label class="icon-label" onclick="deleteLeds()">
-                <img src="icons/trash-svgrepo-com.svg" alt="Delete" class="icon-img default-icon" />
-                <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                <span class="list-item-label">Delete Selected LEDs</span>
-            </label>
-            </div>
-            <div class="box-wrapper">
-                <span class="box-label">LED Groups</span>
-                    <label class="icon-label" onclick="addGroup()">
-                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Add" class="icon-img default-icon" />
-                        <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <label class="icon-label" onclick="clearGroups()">
-                        <img src="icons/trash-svgrepo-com.svg" alt="Clear" class="icon-img default-icon" />
-                        <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                <div id="led-group-list"></div>
-            </div>
-        </div>
-        <div id="canvas-container">
-            <style>
-                
-            </style>
-            <div id = toolbar>
-                <label>Rate: <input type="number" id="frameRate" min="1" max="60" value="30"></label>
-                <label>Color: <input type="color" id="brushColor" value="#ff0000"></label>
-                
-                <label class="icon-label" for="move-tool">
-                    <img src="icons/move-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/move-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="move_tool()" id="move-tool" class="hidden-input"></button>
-                <label class="icon-label" for="rotate-tool">
-                    <img src="icons/rotate-right-fill-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/rotate-right-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="rotateTool()" id="rotate-tool" class="hidden-input"></button>
-                <label>Angle: <input type="number" id="rotate_angle" min="0" max="360" value="90"></label>
-                <label class="icon-label" for="paint-selected">
-                    <img src="icons/paint-bucket-color-colour-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/paint-bucket-color-colour-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="paintSelected()" id="paint-selected" class="hidden-input"></button>
-                <label class="icon-label" for="toggle-leds">
-                    <img src="icons/toggle-on-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/toggle-on-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="toggleSelectedLeds()" id="toggle-leds" class="hidden-input"></button>
-                <label class="icon-label" for="select-tool">
-                    <img src="icons/selection-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/selection-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="select_tool()" id="select-tool" class="hidden-input"></button>
-                <label class="icon-label" for="paint-tool">
-                    <img src="icons/brush-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/brush-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="paint_tool()" id="paint-tool" class="hidden-input"></button>
-                <label class="icon-label" for="erase-tool">
-                    <img src="icons/erase-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/erase-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="erase_tool()" id="erase-tool" class="hidden-input"></button>
-                <label class="icon-label" for="draw-tool">
-                    <img src="icons/draw-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/draw-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="draw_tool()" id="draw-tool" class="hidden-input"></button>
-                <label class="icon-label" for="insert-selected">
-                    <img src="icons/cut-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/cut-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="insertSelectedLeds()" id="insert-selected" class="hidden-input"></button>
-                
-                <label class="icon-label" for="duplicate-selected">
-                    <img src="icons/duplicate-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/duplicate-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="duplicateSelectedLeds()" id="duplicate-selected" class="hidden-input"></button>
-                
-                <label class="icon-label" for="delete-selected">
-                    <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                    <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                </label>
-                <button onclick="deleteSelectedLeds()" id="delete-selected" class="hidden-input"></button>
-                
-            </div>
-            
-            <div>
-                <canvas id="ledCanvas" width="800" height="600"></canvas>
-            </div>
-        </div>
-        <div>
-            <div class="box-wrapper">
-                <span class="box-label">Group Animation</span>
-                <div class="effect-control">
-                    <label>Frames: <input type="number" id="framesCount" min="1" max="60" value="10"></label>
-                </div>
-                <div class="effect-control">
-                    <label>Start Color: <input type="color" id="startColor" value="#ff0000"></label>
-                </div>
-                <div class="effect-control">
-                    <label>End Color: <input type="color" id="endColor" value="#0000ff"></label>
-                </div>
-                <div class="effect-control">
-                    <label>Effect: 
-                        <select id="colorScheme" class="select-input">
-                            <option value="rainbow">Rainbow</option>
-                            <option value="fade">Fade</option>
-                            <option value="random">Random</option>
-                        </select>
-                    </label>
-                </div>
-                <div class="effect-control">
-                    <label class="icon-label" for="apply-animation">
-                        <img src="icons/play-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                        <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <button onclick="createAnimationOnGroup()" id="apply-animation" class="hidden-input"></button>
-                </div>
-            </div>
-            <div class="box-wrapper">
-                <span class="box-label">Animation Controls</span>
-                <div class="button-icon-with-text">
-                    <label class="icon-label" for="create-animation">
-                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                        <img src="icons/play-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <button onclick="createAnimation()" id="create-animation" class="hidden-input"></button>
-                    <label class="button-icon-with-text-label">Create Animation</label>
-                </div>
-                <div class="button-icon-with-text">
-                    <label class="icon-label" for="del-animation">
-                        <img src="icons/trash-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                        <img src="icons/trash-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <button onclick="deleteAnimation()" id="del-animation" class="hidden-input"></button>
-                    <label class="button-icon-with-text-label">Delete Animation</label>
-                </div>
-                <div class="button-icon-with-text">
-                    <label class="icon-label" for="load-animation">
-                        <img src="icons/plus-circle-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                        <img src="icons/plus-circle-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <input type="file" id="load-animation" accept=".json" onchange="loadAnimationFromFile(event)" class="hidden-input" />
-                    <label class="button-icon-with-text-label">Load Animation</label>
-                </div>
-                <div class="button-icon-with-text">
-                    <label class="icon-label" for="save-animation">
-                        <img src="icons/save-floppy-svgrepo-com.svg" alt="Default" class="icon-img default-icon" />
-                        <img src="icons/save-floppy-svgrepo-com_pressed.svg" alt="Pressed" class="icon-img pressed-icon" />
-                    </label>
-                    <button onclick="saveAnimationToFile()" id="save-animation" class="hidden-input"></button>
-                    <label class="button-icon-with-text-label">Save Animation</label>
-                </div>
-                <div class="effect-control">
-                    <label>Name: <input type="text" id="animName"></label>
-                </div>
-            </div>
-            <div id="animation-list"></div>
-        </div>
-    </div>
 
-    <script src="led_common.js"></script>
-    <script src="audio_modulator.js"></script>
-    <script src="led_editor.js"></script>
-   
+<body>
+    <div class="container-fluid h-100 d-flex flex-column">
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="layout-tab" data-bs-toggle="tab" data-bs-target="#layout"
+                    type="button" role="tab">Layout</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="animation-tab" data-bs-toggle="tab" data-bs-target="#animation"
+                    type="button" role="tab">Animation</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="effects-tab" data-bs-toggle="tab" data-bs-target="#effects" type="button"
+                    role="tab">Effects</button>
+            </li>
+        </ul>
+
+        <div class="h-100 bg-light tab-content flex-grow-1 overflow-hidden" id="myTabContent">
+            <div class="h-100 tab-pane fade show active border border-top-0 rounded-bottom" id="layout" role="tabpanel">
+                <div class="h-100 d-flex flex-column tab_container">
+                    
+                    <div class="h-100 overflow-auto d-flex ">
+                        <div id="layout-sidebar" class="sidebar d-flex flex-column">
+                            <button type="button" class="btn btn-default" style="width: fit-content" onclick="toggleLayoutSidebar()">
+                                <span class="fa-solid fa-xmark"></span>
+                            </button>
+                            <div class="box-wrapper">
+                                <span class="box-label">File Operations</span>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" onclick="loadLedsConfig(event)">
+                                    </input>
+                                    <button type="button" class="btn btn-default" onclick="saveLedsConfig()">
+                                        <span class="fa-solid fa-save"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="box-wrapper">
+                            <span class="box-label">LED Strip Settings</span>
+                            <span class="form-label">Layout size:</span>
+                            <div class="input-group d-flex align-items-center">
+                                <input type="number" id="canvasWidth" onchange="canvasDImChange()" class="form-control"
+                                    min="1" max="5000" value="500">
+                                <span class="input-group-addon">X</span>
+                                <input type="number" id="canvasHeight" onchange="canvasDImChange()" class="form-control"
+                                    min="1" max="5000" value="500">
+                            </div>
+                            <span>Add LEDs:</span>
+                            <div class="input-group">
+                                <input type="number" id="ledCount" placeholder="Number of LEDS...   " class="form-control" min="1" max="100">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-default" onclick="addLedStrip()">
+                                        <span class="fa-solid fa-plus"></span>
+                                    </button>
+                                </span>
+                              </div>
+                            
+                            
+                            </div>
+                        </div>
+                        <div id="layout-close-sidebar" class="close-sidebar">
+                            <button type="button" class="btn btn-default" onclick="toggleLayoutSidebar()">
+                                <span class="fa-solid fa-angle-right"></span>
+                            </button>
+                        </div>
+                        <div class="overflow-auto d-flex flex-grow-1 pt-1">
+                            <div class="toolbar">
+                            <div class="btn-toolbar" role="toolbar">
+                                <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
+                                    <button type="button" class="btn btn-default" onclick="move_tool()">
+                                        <span class="fa-solid fa-up-down-left-right"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="select_tool()">
+                                        <span class="fa-solid fa-object-group"></span>
+                                    </button>
+                                    <button class="btn btn-default" type="button" onclick="rotateTool()">
+                                        <span class="fa-solid fa-rotate"></span>
+                                    </button>
+                                    <input type="number" id="rotate_angle" class="form-control"
+                                        min="0" max="360" value="90">
+                                    <button type="button" class="btn btn-default" onclick="erase_tool()">
+                                        <span class="fa-solid fa-eraser"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="draw_tool()">
+                                        <span class="fa-solid fa-pencil"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="insertSelectedLeds()">
+                                        <span class="fa-solid fa-scissors"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default"
+                                        onclick="duplicateSelectedLeds()">
+                                        <span class="fa-solid fa-clone"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="deleteSelectedLeds()">
+                                        <span class="fa-solid fa-trash"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="toggleSelectedLeds()">
+                                        <span class="fa-solid fa-toggle-off"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="undo()">
+                                        <span class="fa-solid fa-undo"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="redo()">
+                                        <span class="fa-solid fa-redo"></span>
+                                    </button>
+                                </div>     
+                            </div>
+                            </div>
+                            <div class="h-100 canvas-container">
+                            <canvas id="ledCanvasLayout" class="canvas-default-size"></canvas>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    <div style="min-height: 120px;"></div>
+                </div>
+            </div>
+            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="animation" role="tabpanel">
+                <div class="h-100 d-flex flex-column tab_container">
+                    <div class="h-100 overflow-auto d-flex ">
+                        <div id="animation-sidebar" class="sidebar d-flex flex-column">
+                            <button type="button" class="btn btn-default" style="width: fit-content;" onclick="toggleAnimationSidebar()">
+                                <span class="fa-solid fa-xmark"></span>
+                            </button>
+                            <div class="h-100 box-wrapper overflow-auto d-flex flex-column">
+                                <span class="box-label">Animation Controls</span>
+                                <div class="btn-toolbar" role="toolbar">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-default" onclick="createAnimation()">
+                                            <span class="fa-solid fa-file-circle-plus"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="deleteAnimation()">
+                                            <span class="fa-solid fa-trash"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="loadAnimationFromFile()">
+                                            <span class="fa-solid fa-folder-open"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="saveAnimationToFile()">
+                                            <span class="fa-solid fa-save"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="effect-control">
+                                    <input class="form-control" type="text" id="animName" placeholder="Animation name...">
+                                </div>
+                                <ul id="animation-list" class="list-group overflow-y-auto">
+                                </ul>
+                            </div>
+                        </div>
+                        <div id="animation-close-sidebar" class="close-sidebar">
+                            <button type="button" class="btn btn-default" onclick="toggleAnimationSidebar()">
+                                <span class="fa-solid fa-angle-right"></span>
+                            </button>
+                        </div>
+                        <div class="overflow-auto d-flex flex-grow-1 pt-1">
+                            <div class="toolbar">
+                                <div class="btn-toolbar" role="toolbar">
+                                    <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
+                                        <button type="button" class="btn btn-default" onclick="paintSelected()">
+                                            <span class="fa-solid fa-fill-drip"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="paint_tool()">
+                                            <span class="fa-solid fa-brush"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="select_tool()">
+                                            <span class="fa-solid fa-object-group"></span>
+                                        </button>
+                                        <input style="width: 40px;" class="form-control form-control-color" type="color"
+                                            id="brushColor" value="#ff0000">
+                                        <button type="button" class="btn btn-default" onclick="undo()">
+                                            <span class="fa-solid fa-undo"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="redo()">
+                                            <span class="fa-solid fa-redo"></span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="h-100 canvas-container">
+                                <canvas id="ledCanvasAnimation" class="canvas-default-size"></canvas>
+                            </div>
+
+                        </div>
+                        <div id="right-side-bar" class="right-sidebar">
+                            <div class="box-wrapper">
+                                <span class="box-label">Group Animation</span>
+                                <div class="effect-control">
+                                    <input type="number" class="form-control" placeholder="number of frames" id="framesCount" min="1" max="60">
+                                </div>
+                                <span>Color range:</span>
+                                <div class="effect-control input-group">
+                                    <input class="form-control form-control-color" type="color" id="startColor" value="#ff0000">
+                                    <input class="form-control form-control-color" type="color" id="endColor" value="#0000ff">
+                                </div>
+                                <div class="d-flex align-items-center" role="group">
+                                    <span for="options" class="form-label mb-0">Effect:</span>
+                                        <select  class="select-input form-select w-auto">
+                                            <option value="rainbow">Rainbow</option>
+                                            <option value="fade">Fade</option>
+                                            <option value="random">Random</option>
+                                        </select>
+                                    <button type="button" class="btn btn-default" onclick="createAnimationOnGroup()">
+                                        <span class="fa-solid fa-play"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="box-wrapper h-100 overflow-auto d-flex flex-column">
+                                <span class="box-label">LED Groups</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-default" onclick="addGroup()">
+                                        <span class="fa-solid fa-object-group"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="clearGroups()">
+                                        <span class="fa-solid fa-trash"></span>
+                                    </button>
+                                </div>
+                                <ul id="led-group-list" class="list-group ">
+                                </ul>
+        
+                            </div>
+                            
+                            
+                        </div>
+                    </div>
+                    <div id="timeline-toolbar">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-default" onclick="prevFrame()">
+                                    <span class="fa-solid fa-chevron-left"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="nextFrame()">
+                                    <span class="fa-solid fa-chevron-right"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="addFrame()">
+                                    <span class="fa-solid fa-plus"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="deleteFrame()">
+                                    <span class="fa-solid fa-remove"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="duplicateFrame()">
+                                    <span class="fa-solid fa-clone"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="playAnimation()">
+                                    <span class="fa-solid fa-play"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="exportAnimation()">
+                                    <span class="fa-solid fa-file-export"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="timeline">
+                            <div id="frame-thumbnails" class="timeline-wrapper">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade  border border-top-0 rounded-bottom" id="effects" role="tabpanel">
+
+            </div>
+        </div>
+
+
+
+
+
+
+
+
+
+        <script src="bootstrap-5.3.6-dist/js/bootstrap.bundle.min.js"></script>
+        <script src="led_common.js"></script>
+        <script src="audio_modulator.js"></script>
+        <script src="led_editor.js"></script>
+
 </body>
+
 </html>
