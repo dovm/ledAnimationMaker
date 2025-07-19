@@ -1,210 +1,13 @@
-
-const canvas = document.getElementById('ledCanvas');
-const animNameInput = document.getElementById('animName'); 
-const frameThumbnails = document.getElementById('frame-thumbnails');
-const animationList = document.getElementById('animation-list');
 const effectAnim = document.getElementById('effect-anim');
 const effectList = document.getElementById('effect-list');
 
-let animation = [];
-let currentAnim = 0;
-let currentFrame = -1;
-let ledStrip = new LedStrip(0, []);
-let toolContext = {
-    audioCtrl: undefined,
-    audioSpectrum: undefined
-}
-
-const audio = document.getElementById("audioElement");
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-toolContext.audioCtrl = new AudioLedController(canvas, ledStrip);
-const specCanvas = document.getElementById("spectrum-canvas")
-const analyser = audioContext.createAnalyser();
-analyser.fftSize = 2048;
-
-// Connect the audio source to the analyzer
-const source = audioContext.createMediaElementSource(audio);
-source.connect(analyser);
-
-analyser.connect(audioContext.destination);
-toolContext.audioSpectrum = new AudioSpectrum(specCanvas);
-toolContext.audioCtrl.setAnalayzer(analyser);
-toolContext.audioSpectrum.setAnalayzer(analyser);
-
-// Ensure the context is resumed after user interaction (required by browsers)
-audioElement.addEventListener("play", () => {
-    if (audioContext.state === "suspended") {
-        audioContext.resume();
-    }
-    toolContext.audioCtrl.start();
-    toolContext.audioSpectrum.start();
-});
-
-audio.addEventListener("pause", () => {toolContext.audioCtrl.stop(); toolContext.audioSpectrum.stop()});
-audio.addEventListener("ended", () => {toolContext.audioCtrl.stop(); toolContext.audioSpectrum.stop()});
-
-
-function loadAnimation(){
-
-}
-
-function drawEmptyFrame(){
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawFrame(frame) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if(frame){
-        p = new Path2D();
-        ctx.beginPath();
-        ctx.strokeStyle = `rgb(157, 157, 157)`;
-        ledStrip.ledPath.forEach((point, index) => {
-            ctx.lineTo(point.x + 10, point.y + 10);
-        });
-        ctx.stroke();
-        frame.leds.forEach((color, index) => {
-            p = new Path2D();
-            if(ledStrip.isDisabled(index)){
-                ctx.fillStyle = `rgb(185, 185, 185)`;
-            }
-            else{
-                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-            }
-            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
-            ctx.fill(p);
-        });
-    }
-  
-}
-
-function updateThumbnails() {
-    frameThumbnails.innerHTML = '';
-    animation[currentAnim].frames.forEach((_, index) => {
-        const div = document.createElement('div');
-        div.classList.add('frame-thumbnail');
-        if(index == currentFrame)
-            div.classList.add('frame-thumbnail-current');
-        div.innerText = index + 1;
-        div.onclick = () => { currentFrame = index; updateThumbnails(); drawFrame(animation[currentAnim].frames[currentFrame]); };
-        frameThumbnails.appendChild(div);
-
-    });
-}
-
-function deleteFrame() { 
-    if (animation[currentAnim].frames.length > 0) { 
-        animation[currentAnim].frames.splice(currentFrame, 1); 
-        if (currentFrame >= animation[currentAnim].frames.length)
-            currentFrame--; 
-        drawFrame(animation[currentAnim].frames[currentFrame]); 
-        updateThumbnails();
-        if(animation[currentAnim].frames.length == 0)
-            drawEmptyFrame()
-    } 
-}
-
-function dumpObjectToJson(obj, filename = "object.json") {
-    const json = JSON.stringify(obj, null, 4);
-    const blob = new Blob([json], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-
-function loadLedsFromJson(loadedObj)
-{
-    ledStrip = new LedStrip(loadedObj.ledCount, loadedObj.ledPath);
-    if(loadedObj.leds)
-    {
-        loadedObj.leds.forEach((led, index) => {
-            if(led)
-                ledStrip.disable(index);
-            else
-                ledStrip.enable(index);
-        });
-    }
-    toolContext.audioCtrl.setLedStrip(ledStrip);
-    updateLayoutFileName();
-}
-
-function loadLedsConfig(event){
-    const file = event.target.files[0];
-    loadObjectFromJson(file, loadLedsFromJson);
-}
-
-function loadObjectFromJson(file, callback) {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const obj = JSON.parse(event.target.result);
-        callback(obj);
-    };
-    reader.readAsText(file);
-}
-
-
-function updateAnimationList() {
-    animationList.innerHTML = '';
-    
-    while (effectAnim.options.length > 0) {                
-        effectAnim.remove(0);
-    }  
-    animation.forEach((anim, index) => {
-        const div = document.createElement('div');
-        div.classList.add('animation-item');
-        div.innerHTML = `<input id=animation_checkbox${index} type="checkbox"/>
-            <label class="list-item-label">${anim.name}</label>`;
-        if(index == currentAnim)
-        {
-            div.classList.add('selected-item');
-        }
-        animationList.appendChild(div);
-        div.addEventListener('click', (event) => {
-            console.log(event.target.type)
-            if (event.target.type === "checkbox") {
-                return;
-            }
-            selectAnimation(index);
-        });
-        document.getElementById(`animation_checkbox${index}`).checked = animation[index].selected;
-        document.getElementById(`animation_checkbox${index}`).addEventListener('click',()=>{
-            animation[index].selected = document.getElementById(`animation_checkbox${index}`).checked;
-        });
-        effectAnim.options[effectAnim.options.length] = new Option(anim.name, index);
-    });
-
-}
-
-function selectAnimation(index){
-    currentAnim = index;
-    currentFrame = 0;
-    updateAnimationList();
-    updateThumbnails();
-    drawFrame(animation[currentAnim].frames[currentFrame]);
-}
-
-function loadAnimationFromFile(event){
-    const file = event.target.files[0];
-    loadObjectFromJson(file, (loadedObj) => {
-        animation.push(new Animation().fromJson(loadedObj));
-        selectAnimation(animation.length - 1);
-    });
-}
-
-function deleteAnimation(index){
-    animation.splice(index, 1);
-    if(currentAnim >= index)
-        currentAnim -= 1;
-    updateAnimationList()
-}
 
 let effects = [];
 let currentEffect = -1;
 
+
+const axisXheight = 15;
+const axisYwidth = 20;
 
 function resetEffectControls() {
     // Reset animation selection
@@ -224,47 +27,67 @@ function updateEffectTypeControls() {
     const effectType = document.getElementById('effect-type').value;
     const pulseControls = document.querySelectorAll('.pulse-control');
     const animControls = document.querySelectorAll('.anim-control');
+    const triggerControls = document.querySelectorAll('.trigger-control');
     
     if (effectType === "Pulse") { // Pulse effect
-        pulseControls.forEach(control => control.style.display = "block");
-        animControls.forEach(control => control.style.display = "none");
+        pulseControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        animControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        triggerControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        
     } else if (effectType === "Animation") { // Animation effect
-        pulseControls.forEach(control => control.style.display = "none"); 
-        animControls.forEach(control => control.style.display = "block");
+        pulseControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");}); 
+        animControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        triggerControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+    }
+    else if (effectType === "Trigger") { // Trigger effect
+        pulseControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");}); 
+        animControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        triggerControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        let loadAnimList = document.getElementById('effect-end-animation');
+        while (loadAnimList.options.length > 0) {                
+            loadAnimList.remove(0);
+        }  
+        animation.forEach((anim, index) => loadAnimList.options[loadAnimList.options.length] = new Option(anim.name, index));
+            
     }
 }
 
 // Add event listener for effect type changes
 document.getElementById('effect-type').addEventListener('change', (e) => {
-    //updateEffectTypeControls();
+    updateEffectTypeControls();
 });
 
 
+const effectTypeIndex = {"EffectPulse": 0, "EffectAnim": 1, "EffectTriger": 2}
 
 function updateEffectControl(index)
 {
-    
     if(index!= -1)
     {
+        document.getElementById('effect-type').selectedIndex = effectTypeIndex[effects[0].effect.constructor.name]
+        updateEffectTypeControls();
         let effect = effects[index].effect;
-        //updateEffectTypeControls()
         if(effect instanceof EffectPulse)
         {
             document.getElementById('effect-type').selectedIndex = 0;
-            //updateEffectTypeControls();
-            document.getElementById('effect-min-range').value = effect.settings.range.min;
-            document.getElementById('effect-max-range').value = effect.settings.range.max;
         }
         else if(effect instanceof EffectAnim)
         {
             document.getElementById('effect-type').selectedIndex = 1;
-            //updateEffectTypeControls();
-            document.getElementById('effect-min-range').value = effect.settings.range.min;
-            document.getElementById('effect-max-range').value = effect.settings.range.max;
         }
-        document.getElementById('effect-anim').selectedIndex = animation.indexOf(effect.animation);
+        else if(effect instanceof EffectTriger)
+        {
+            document.getElementById('effect-type').selectedIndex = 2;
+            document.getElementById('effect-time-window').value = effect.settings.timeWindow;
+            document.getElementById('effect-end-animation').selectedIndex = effect.settings.endAnimationIndex;
+            document.getElementById('effect-animation-rate').value = effect.settings.animationRate;
+        }
+        
+        document.getElementById('effect-anim').selectedIndex = effect.animationIndex;
         document.getElementById('effect-Hz-min-range').value = effect.settings.HzRange.min; 
         document.getElementById('effect-Hz-max-range').value = effect.settings.HzRange.max;
+        document.getElementById('effect-min-range').value = effect.settings.range.min; 
+        document.getElementById('effect-max-range').value = effect.settings.range.max;
     }
     else{
         resetEffectControls();
@@ -282,6 +105,13 @@ function addEffect(){
         effects.push({ effect: new EffectPulse(animation[animIndex], {HzRange: HzRange, range: range}), selected: true});
     else if(effect_type == 1)
         effects.push({ effect: new EffectAnim(animation[animIndex], {HzRange: HzRange, range: range}), selected: true});
+    else if(effect_type == 2){
+        let timeWindow = document.getElementById('effect-time-window').value;
+        let endAnimationIndex = document.getElementById('effect-end-animation').selectedIndex;
+        let animationRate = document.getElementById('effect-animation-rate').value;
+        effects.push({ effect: new EffectTriger(animation[animIndex], animation[endAnimationIndex], 
+            {HzRange: HzRange, range: range, timeWindow, animationRate, endAnimationIndex}), selected: true});
+    }
     updateEffectList();
     updateEffectControl(-1);
     updateBandsInSpectrum()
@@ -289,9 +119,9 @@ function addEffect(){
 
 function updateBandsInSpectrum()
 {
-    toolContext.audioSpectrum.resetBands();
+    audioToolContext.audioSpectrum.resetBands();
     effects.forEach((e) => {
-        toolContext.audioSpectrum.addBand(e.effect.settings.HzRange.min, e.effect.settings.HzRange.max);
+        audioToolContext.audioSpectrum.addBand(e.effect.settings.HzRange.min, e.effect.settings.HzRange.max);
     });
 }
 
@@ -299,6 +129,7 @@ function deleteEffect(){
     effects.splice(currentEffect, 1);
     updateEffectList();
     updateEffectControl(-1);
+    updateBandsInSpectrum()
 }
 
 function updateEffectList(){
@@ -349,7 +180,7 @@ function saveEffectsToFile() {
         })),
         effects: effects.map(e => ({
             effect: {
-                type: e.effect instanceof EffectPulse ? 'pulse' : 'animation',
+                type: e.effect instanceof EffectPulse ? 'pulse' : e.effect instanceof EffectAnim ? 'animation' : 'trigger',
                 settings: e.effect.settings,
                 animationIndex: animation.indexOf(e.effect.animation)
             },
@@ -372,8 +203,8 @@ function loadEffectsFromFile(event) {
     reader.onload = function(e) {
         const data = JSON.parse(e.target.result);
         
+        loadLedsFromJson(data.ledStrip)
         // Load LED strip
-        ledStrip = new LedStrip(data.ledStrip.ledCount, data.ledStrip.ledPath);
         
         // Load animations
         animation = data.animations.map(anim => {
@@ -391,14 +222,17 @@ function loadEffectsFromFile(event) {
             
             if (e.effect.type === 'pulse') {
                 effect = new EffectPulse(targetAnim, e.effect.settings);
-            } else {
+            } else if(e.effect.type === 'anim'){
                 effect = new EffectAnim(targetAnim, e.effect.settings);
+            } else if(e.effect.type === 'trigger'){
+                effect = new EffectTriger(targetAnim, animation[e.effect.settings.endAnimationIndex] ,  e.effect.settings);
             }
             
             return {effect: effect, selected: false};
         });
 
         // Update UI
+        updateAnimationList();
         updateEffectList();
         updateEffectControl(-1);
         updateBandsInSpectrum();
@@ -422,17 +256,12 @@ function updateAudioFileName(event)
 
 function updateEffect()
 {
-    toolContext.audioCtrl.resetEffects();
+    audioToolContext.audioCtrl.resetEffects();
     effects.forEach((effect, index)=> {
         if(effect.selected)
-            toolContext.audioCtrl.addEffect(effect.effect);
+            audioToolContext.audioCtrl.addEffect(effect.effect);
     });
-}
-
-function updateLayoutFileName(event)
-{
-    let filename = document.getElementById("layout-file").files[0];
-    document.getElementById("layout-file-name").textContent = filename.name;
+    updateBandsInSpectrum()
 }
 
 function updateSpectrumRanges() {
@@ -441,62 +270,160 @@ function updateSpectrumRanges() {
     const minY = parseFloat(document.getElementById("spectrum-min-level").value); 
     const maxY = parseFloat(document.getElementById("spectrum-max-level").value);
 
-    toolContext.audioSpectrum.setXRange(minX, maxX);
-    toolContext.audioSpectrum.setYRange(minY, maxY);
+    audioToolContext.audioSpectrum.setXRange(minX, maxX);
+    audioToolContext.audioSpectrum.setYRange(minY, maxY);
 
     drawSpectrumAxis();
 }
+
 function drawSpectrumAxis() {
-    // Draw Y axis
-    const axisYCanvas = document.getElementById("spectrum-axis-y");
-    const ctxY = axisYCanvas.getContext("2d");
-    ctxY.clearRect(0, 0, axisYCanvas.width, axisYCanvas.height);
+    const ctx = specCanvas.getContext('2d');
     
+    ctx.clearRect(0, 0, axisYwidth, specCanvas.height);
+    ctx.clearRect(0, specCanvas.height-axisXheight, specCanvas.width, axisXheight);
+
+    const axisYlength = specCanvas.height-axisXheight;
     // Y axis labels
-    const yStep = (toolContext.audioSpectrum.maxY - toolContext.audioSpectrum.minY) / 5;
+    const yStep = (audioToolContext.audioSpectrum.maxY - audioToolContext.audioSpectrum.minY) / 5;
     for(let i = 0; i <= 5; i++) {
-        const y = toolContext.audioSpectrum.minY + (yStep * i);
-        const yPos = axisYCanvas.height - ((axisYCanvas.height) * (i/5));
-        ctxY.fillText(Math.round(y), 0, yPos);
+        const y = audioToolContext.audioSpectrum.minY + (yStep * i);
+        const yPos = axisYlength - ((axisYlength) * (i/5)) - axisXheight;
+        ctx.fillText(Math.round(y), 0, yPos, axisYwidth);
     }
 
-    // Draw X axis
-    const axisXCanvas = document.getElementById("spectrum-axis-x"); 
-    const ctxX = axisXCanvas.getContext("2d");
-    ctxX.clearRect(0, 0, axisXCanvas.width, axisXCanvas.height);
-
+    const axisXlength = specCanvas.width-axisYwidth;
     // X axis labels
-    const xStep = (toolContext.audioSpectrum.maxX - toolContext.audioSpectrum.minX) / 5;
+    const xStep = (audioToolContext.audioSpectrum.maxX - audioToolContext.audioSpectrum.minX) / 5;
     for(let i = 0; i <= 5; i++) {
-        const x = toolContext.audioSpectrum.minX + (xStep * i);
-        const freq = (x * toolContext.audioSpectrum.sampleRate) / toolContext.audioSpectrum.analyser.fftSize;
-        const xPos = (axisXCanvas.width) * (i/5);
-        ctxX.fillText(Math.round(freq) + "Hz", xPos, axisXCanvas.height);
+        const x = audioToolContext.audioSpectrum.minX + (xStep * i);
+        const freq = (x * audioToolContext.audioSpectrum.sampleRate) / audioToolContext.audioSpectrum.analyser.fftSize;
+        const xPos = (axisXlength) * (i/5) + axisYwidth;
+        ctx.fillText(Math.round(freq) + "Hz", xPos, specCanvas.height-1);
     }
+
+    // border
+    p = new Path2D();
+    ctx.beginPath();
+    ctx.strokeStyle = `rgb(0, 0, 0)`;
+    ctx.lineTo(axisYwidth-1, 0);
+    ctx.lineTo(axisYwidth-1, axisYlength+1);
+    ctx.lineTo(axisXlength + axisYwidth, axisYlength+1);
+    ctx.stroke();
+
+    
 }
 
 // Initial draw
-drawSpectrumAxis();
 
-// Add event listeners to range inputs
-document.getElementById('spectrum-min-freq').addEventListener('input', function() {
-    document.getElementById('min-freq-value').textContent = this.value;
-    updateSpectrumRanges();
+const spectrumContainer = document.getElementById("spectrum-display-container");
+
+function resizeCanvasToContainer() {
+    const { width, height } = spectrumContainer.getBoundingClientRect();
+    specCanvas.width = width-7;
+    specCanvas.height = height-7;
+    drawSpectrumAxis();
+}
+
+
+var effectsTab = document.getElementById("effects-tab")
+
+effectsTab.addEventListener("shown.bs.tab", ()=>{
+    resizeCanvasToContainer();
 });
 
-document.getElementById('spectrum-max-freq').addEventListener('input', function() {
-    document.getElementById('max-freq-value').textContent = this.value;
-    updateSpectrumRanges();
+window.addEventListener('resize', resizeCanvasToContainer);
+
+function changeSpectrumRanges(){
+    let lastMaxX = audioToolContext.audioSpectrum.maxX;
+    let lastMinX = audioToolContext.audioSpectrum.minX;
+    let lastMaxY = audioToolContext.audioSpectrum.maxY;
+    let lastMinY = audioToolContext.audioSpectrum.minY;
+    specCanvasContext.zoomStack.push([lastMinX, lastMaxX, lastMinY, lastMaxY])
+    let lastSpanX = lastMaxX - lastMinX;
+    let lastSpanY = lastMaxY - lastMinY;
+    const axisXStep = (specCanvas.width-axisYwidth)/lastSpanX;
+    const minPosX = Math.min(specCanvasContext.selectBoxStartXY[0], specCanvasContext.selectBoxEndXY[0]);
+    const maxPosX = Math.max(specCanvasContext.selectBoxStartXY[0], specCanvasContext.selectBoxEndXY[0]);
+    let minX = Math.floor((minPosX-axisYwidth)/axisXStep + lastMinX);
+    let maxX = Math.ceil((maxPosX-axisYwidth)/axisXStep + lastMinX);
+
+    const axisYStep = (specCanvas.height-axisXheight)/lastSpanY;
+    const minPosY = (specCanvas.height-axisXheight) - Math.max(specCanvasContext.selectBoxStartXY[1], specCanvasContext.selectBoxEndXY[1]);
+    const maxPosY = (specCanvas.height-axisXheight) - Math.min(specCanvasContext.selectBoxStartXY[1], specCanvasContext.selectBoxEndXY[1]);
+    let minY = Math.floor(minPosY/axisYStep + lastMinY);
+    let maxY = Math.ceil(maxPosY/axisYStep + lastMinY);
+    
+    console.log("rangeX", minX, maxX)
+    console.log("rangeY", minY, maxY)
+    
+    audioToolContext.audioSpectrum.setXRange(minX, maxX);
+    audioToolContext.audioSpectrum.setYRange(minY, maxY);
+
+    drawSpectrumAxis();
+}
+
+function revertZoom(){
+    a = []
+    let lastZoom = specCanvasContext.zoomStack.pop()
+    if(!lastZoom)
+        lastZoom = [0,1024,0,255]
+    audioToolContext.audioSpectrum.setXRange(lastZoom[0], lastZoom[1]);
+    audioToolContext.audioSpectrum.setYRange(lastZoom[2], lastZoom[3]);
+    drawSpectrumAxis();
+}
+
+specCanvasContext = {
+    selectBoxStartXY: [0,0],
+    selectBoxEndXY: [0,0],
+    isSelect: false,
+    zoomStack: []
+}
+
+function drawSelectionBox(){
+    const selBox = document.getElementById("spectrum-sel-box");
+    selBox.style.top = Math.min(specCanvasContext.selectBoxStartXY[1],specCanvasContext.selectBoxEndXY[1]) +"px";
+    selBox.style.left = Math.min(specCanvasContext.selectBoxStartXY[0],specCanvasContext.selectBoxEndXY[0]) +"px";
+    
+    selBox.style.width = Math.abs(specCanvasContext.selectBoxEndXY[0] - specCanvasContext.selectBoxStartXY[0]) + "px";
+    selBox.style.height = Math.abs(specCanvasContext.selectBoxEndXY[1] - specCanvasContext.selectBoxStartXY[1]) + "px";
+}
+
+specCanvas.addEventListener('mousedown', (event) => {
+    if(event.button !=2){
+        const rect = event.target.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        specCanvasContext.isSelect = true;
+        specCanvasContext.selectBoxStartXY = [x, y];
+        specCanvasContext.selectBoxEndXY = [x, y];    
+        drawSelectionBox(); 
+    }
+    else
+        revertZoom()
 });
 
-document.getElementById('spectrum-min-level').addEventListener('input', function() {
-    document.getElementById('min-level-value').textContent = this.value;
-    updateSpectrumRanges();
+specCanvas.addEventListener('mousemove', (event) => {
+    if(specCanvasContext.isSelect){
+        const rect = event.target.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        specCanvasContext.selectBoxEndXY = [x, y];
+        drawSelectionBox();
+    }
 });
 
-document.getElementById('spectrum-max-level').addEventListener('input', function() {
-    document.getElementById('max-level-value').textContent = this.value;
-    updateSpectrumRanges();
+specCanvas.addEventListener('mouseup', (event) => {
+    if(event.button !=2){
+    specCanvasContext.isSelect = false;
+    changeSpectrumRanges();
+    specCanvasContext.selectBoxStartXY = [0,0];
+    specCanvasContext.selectBoxEndXY = [0,0];
+    drawSelectionBox();
+    }
 });
 
+specCanvas.addEventListener('contextmenu', (event) => { //right click
+    event.preventDefault()
+    //revertZoom()  
+});
 

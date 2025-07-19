@@ -1,0 +1,14 @@
+[Unit]
+Description=Blink my LED
+After=multi-user.target
+
+[Service]
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/python/bin/python /home/pi/led_effect_player.py
+Restart=always
+RestartSec=10s
+user=pi
+
+[Install]
+WantedBy=multi-user.target
+

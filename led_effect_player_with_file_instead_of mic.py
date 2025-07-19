@@ -79,29 +79,34 @@ def process_audio():
     global last_frame_index
     """Process audio input and update LED effects"""
     
+    wf = wave.open("temp.wav", 'rb')
+    
     # Initialize PyAudio
     p = pyaudio.PyAudio()
     
     # Open stream
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=1,
-                    rate=44100,
-                    input=True, frames_per_buffer=CHUNK)
+    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                    channels=wf.getnchannels(),
+                    rate=wf.getframerate(),
+                    output=True)
     global RATE
-    RATE = 44100
+    RATE = wf.getframerate()
     frame_time = CHUNK/RATE
-    data = stream.read(CHUNK, exception_on_overflow = False)
+    wf.readframes(int(skip_time*RATE))
+    data = wf.readframes(CHUNK)
     
     
     while True:
         start_time = time.time()
+        stream.write(data)
         # Perform FFT
         data = np.frombuffer(data, dtype=np.int16) 
         fft_data = fft(data)
-        data = stream.read(CHUNK, exception_on_overflow = False)
-        
-        if not data:
-            continue
+        #wf.readframes(CHUNK*200)
+        data = wf.readframes(CHUNK)
+        if(not data):
+            wf.rewind()
+            data = wf.readframes(CHUNK)
         # Reset current frame
         current_frame = np.zeros((NUM_LEDS, 3), dtype=np.uint8)
 
@@ -160,7 +165,7 @@ def process_audio():
                 power = effect["mean_power_over_time"] / len(effect["last_powers_array"])
                 #print("power", effect)
                 # Check if power is above threshold
-                print("power", power)
+                #print("power", power)
                 if power > effect['effect']['settings']['range']['max'] or (effect.__contains__('is_threshold') and effect["is_threshold"]):
                     # Trigger the end animation
                     if not effect.__contains__('is_threshold'):

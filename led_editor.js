@@ -1,14 +1,15 @@
 
 const canvasLayout = document.getElementById('ledCanvasLayout');
 const canvasAnimation = document.getElementById('ledCanvasAnimation');
+const canvasEffects = document.getElementById('ledCanvasEffects');
 const frameRateInput = document.getElementById('frameRate');
 const brushColorInput = document.getElementById('brushColor');
 const animNameInput = document.getElementById('animName'); 
 const ledList = document.getElementById('led-list');
 const ledGroupList = document.getElementById('led-group-list');
 const frameThumbnails = document.getElementById('frame-thumbnails');
+const effectFrameThumbnails = document.getElementById('effect-frame-thumbnails');
 const animationList = document.getElementById('animation-list');
-const effectAnim = document.getElementById('effect-anim');
 
 
 
@@ -73,6 +74,10 @@ function drawEmptyFrame(){
         const ctx = canvasAnimation.getContext('2d');
         ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
     }
+    else if(getActiveTab() == 'effects-tab'){
+        const ctx = canvasEffects.getContext('2d');
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+    }
 }
 
 function drawFrame(){
@@ -82,6 +87,10 @@ function drawFrame(){
     else if(getActiveTab() == 'animation-tab'){
         drawFrameAnimation();
     }
+    else if(getActiveTab() == 'effects-tab'){
+        audioDrawFrame();
+    }
+
 }
 
 function drawFrameLayout() {
@@ -108,12 +117,13 @@ function drawFrameLayout() {
     });
     if(toolContext.select_mode == "selecting")
     {
-        width = toolContext.select_end.x - toolContext.select_start.x;
-        height = toolContext.select_end.y - toolContext.select_start.y;
-        ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
-        ctx.fillRect(toolContext.select_start.x, toolContext.select_start.y, width, height);
+        //width = toolContext.select_end.x - toolContext.select_start.x;
+        //height = toolContext.select_end.y - toolContext.select_start.y;
+        //ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
+        //ctx.fillRect(toolContext.select_start.x, toolContext.select_start.y, width, height);
     }
     
+    document.getElementById('status-line-selected-leds').textContent = `${toolContext.led_selected.length}`;
     toolContext.led_selected.forEach((led, index) =>{
         p = new Path2D();
         p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
@@ -122,11 +132,18 @@ function drawFrameLayout() {
     });
 }
 
+function drawLayoutSelectionBox(selBox, point1, point2){
+    selBox.style.top = Math.min(point1.y,point2.y) +"px";
+    selBox.style.left = Math.min(point1.x,point2.x) +"px";
+    selBox.style.width = Math.abs(point2.x-point1.x) + "px";
+    selBox.style.height = Math.abs(point2.y-point1.y) + "px";
+}
+
 function drawFrameAnimation() {
     let frame = undefined;
     const ctx = canvasAnimation.getContext('2d');
     ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
-    if(animation.length > 0 && animation[currentAnim].frames.length > 0)
+    if(animation.length > 0 && currentAnim != -1 && animation[currentAnim].frames.length > 0 && currentFrame != -1)
         frame = animation[currentAnim].frames[currentFrame];
     p = new Path2D();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
@@ -169,6 +186,38 @@ function drawFrameAnimation() {
             p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
             ctx.strokeStyle = "rgb(89, 0, 255)";
             ctx.stroke(p);              
+        }
+    });
+}
+
+function audioDrawFrame() {
+    const ctx = ledCanvasEffects.getContext('2d');
+    ctx.clearRect(0, 0, ledCanvasEffects.width, ledCanvasEffects.height);    
+    p = new Path2D();
+    ctx.beginPath();
+    ctx.strokeStyle = `rgb(157, 157, 157)`;
+    ledStrip.ledPath.forEach((point, index) => {
+        ctx.lineTo(point.x + 10, point.y + 10);
+    });
+    ctx.stroke();
+
+    let frame = undefined;
+    if(currentAnim != -1 && currentFrame != -1)
+    {
+        frame = animation[currentAnim].frames[currentFrame];
+    }
+    ledStrip.ledPath.forEach((color, index) => {
+        p = new Path2D();
+        if(!ledStrip.isDisabled(index)){
+            if(frame){
+                color = frame.leds[index];
+                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            }
+            else
+                ctx.fillStyle = "black";
+            
+            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
+            ctx.fill(p);
         }
     });
 }
@@ -292,6 +341,7 @@ function updateThumbnails() {
         div.dataset.frameIndex = index;
         frameThumbnails.appendChild(div);
     });
+    updateEffectsThumbnails();
 }
 
 
@@ -363,6 +413,8 @@ function select_mousedown(event){
     toolContext.select_start = {x,y};
     toolContext.select_end = {x,y};
     toolContext.select_mode = "selecting";
+    const selBox = document.getElementById("layout-sel-box");
+    drawLayoutSelectionBox(selBox, toolContext.select_start, toolContext.select_end)
 }
 
 function getLedsInSelectedBox(selectBox)
@@ -413,6 +465,8 @@ function select_mouseup(event){
                 toolContext.led_selected.push(led);
         }));
         toolContext.select_mode = "none"
+        const selBox = document.getElementById("layout-sel-box");
+        drawLayoutSelectionBox(selBox, {x:-1,y:-1}, {x:-1,y:-1})
     }
     drawFrame();
 }
@@ -422,6 +476,8 @@ function select_mousemove(event) {
     if(toolContext.select_mode == "selecting")
     {
         toolContext.select_end = {x,y};
+        const selBox = document.getElementById("layout-sel-box");
+        drawLayoutSelectionBox(selBox, toolContext.select_start, toolContext.select_end)
     }
     else if(toolContext.moving == true){
         diffX = x - toolContext.move_start.x;
@@ -431,8 +487,9 @@ function select_mousemove(event) {
             led.point.x = led.x + diffX;
             led.point.y = led.y + diffY; 
         });
+        drawFrame();
     }
-    drawFrame();
+    
 }
 
 function get_pressed_led(point){
@@ -472,6 +529,7 @@ function addLedStrip() {
     if(ledStrip == undefined)
     {  
         ledStrip = new LedStrip(0, []);
+        audioToolContext.audioCtrl.setLedStrip(ledStrip);
     }
     const ledCount = parseInt(document.getElementById('ledCount').value);
     const spacing = Math.min(toolContext.canvasWidth / ledCount, 24);
@@ -492,7 +550,7 @@ function deleteSelectedLeds() {
     const sortedSelected = [...toolContext.led_selected].sort((a, b) => b.index - a.index);
     // Remove LEDs from the path and colors array
     sortedSelected.forEach(led => {
-        ledStrip.ledPath.splice(led.index, 1);
+        ledStrip.remove(led.index);
         updateFrames({index: led.index}, 'del');
         //animation[currentAnim].frames[currentFrame].leds.splice(led.index, 1);
     });
@@ -631,6 +689,12 @@ canvasLayout.addEventListener('click', (event) => {
 });
 
 canvasLayout.addEventListener('mousemove', (event) => {
+    document.getElementById('status-line-coordinates').textContent = `${event.offsetX} / ${event.offsetY}`
+    led = get_pressed_led({x:event.offsetX, y:event.offsetY})
+    if(led.index == -1)
+        document.getElementById('status-line-led-number').textContent = '-'
+    else
+        document.getElementById('status-line-led-number').textContent = `${led.index+1}`
     tool_callbacks[toolContext.active_tool].mousemove(event)
 });
 
@@ -661,10 +725,17 @@ function zoom(event){
         // Apply scale transform
         canvasLayout.style.zoom = `${toolContext.scale}`;
         canvasAnimation.style.zoom = `${toolContext.scale}`;
+        canvasEffects.style.zoom = `${toolContext.scale}`;
 }
 
 
 canvasAnimation.addEventListener('wheel', (event) => {
+    if(event.ctrlKey){
+        zoom(event);     
+    }
+});
+
+canvasEffects.addEventListener('wheel', (event) => {
     if(event.ctrlKey){
         zoom(event);     
     }
@@ -762,12 +833,13 @@ function dumpObjectToJson(obj, filename = "object.json") {
 
 function loadLedsFromJson(loadedObj)
 {
-    animation[currentAnim].frames = [];
-    currentFrame = -1;
-    updateThumbnails();
-    if(animation[currentAnim].frames.length == 0)
-        drawEmptyFrame()
+    drawEmptyFrame()
     ledStrip = new LedStrip(loadedObj.ledCount, loadedObj.ledPath);
+    audioToolContext.audioCtrl.setLedStrip(ledStrip);
+    document.getElementById('canvasWidth').value = loadedObj.width;    
+    document.getElementById('canvasHeight').value = loadedObj.height;
+    canvasDImChange();
+
     if(loadedObj.leds)
     {
         loadedObj.leds.forEach((led, index) => {
@@ -777,7 +849,6 @@ function loadLedsFromJson(loadedObj)
                 ledStrip.enable(index);
         });
     }
-    addFrame()
 }
 
 function loadLedsConfig(event){
@@ -881,7 +952,8 @@ function updateGroupList() {
             if (event.target.type === "checkbox") {
                 return;
             }
-            ledGroupList.children.item(toolContext.current_group).classList.remove('selected-item')
+            if(ledGroupList.querySelector(".selected-item"))
+                ledGroupList.querySelector(".selected-item").classList.remove('selected-item')
             selectGroup(index);
             ledGroupList.children.item(toolContext.current_group).classList.add('selected-item')
             drawFrame();
@@ -916,7 +988,6 @@ function deleteAnimation(){
 
 function updateAnimationList() {
     animationList.innerHTML = '';
-     
     animation.forEach((anim, index) => {
         const li = document.createElement('li');
         li.classList.add('list-group-item');
@@ -928,6 +999,7 @@ function updateAnimationList() {
             li.classList.add('selected-item');
         }
         animationList.appendChild(li);
+
         li.addEventListener('click', (event) =>{
             if (event.target.type === "checkbox") {
                 return;
@@ -935,6 +1007,7 @@ function updateAnimationList() {
             animationList.children.item(currentAnim).classList.remove('selected-item');
             li.classList.add('selected-item');
             selectAnimation(index);
+            updateEffectsAnimationList();
         });
         let label = document.getElementById(`animLabel${index}`)
         let input = document.getElementById(`animLabelEdit${index}`)
@@ -949,6 +1022,8 @@ function updateAnimationList() {
             label.textContent = input.value;
             label.classList.remove("hidden-input")
             input.classList.add("hidden-input")
+            anim.name = label.textContent;
+            updateEffectsAnimationList();
         };
 
         input.addEventListener('blur', save);
@@ -963,7 +1038,45 @@ function updateAnimationList() {
             animation[index].selected = document.getElementById(`animation${index}`).checked;
         });
     });
+    updateEffectsAnimationList();
+}
 
+function updateEffectsAnimationList()
+{
+    const effectsAnimationList = document.getElementById("effects-animation-list");
+    const effectAnim = document.getElementById("effect-anim");
+    effectsAnimationList.innerHTML = '';
+
+    while (effectAnim.options.length > 0) {                
+        effectAnim.remove(0);
+    }  
+    animation.forEach((anim, index) => {
+        const li = document.createElement('li');
+        li.classList.add('list-group-item');
+        li.innerHTML = `<input id=animation${index} type="checkbox"/>
+            <label id=animLabel${index}>${anim.name}</label>`;
+        if(index == currentAnim)
+        {
+            li.classList.add('selected-item');
+        }
+        effectsAnimationList.appendChild(li);
+
+        li.addEventListener('click', (event) =>{
+            if (event.target.type === "checkbox") {
+                return;
+            }
+            if(currentAnim != -1)
+                effectsAnimationList.children.item(currentAnim).classList.remove('selected-item');
+            li.classList.add('selected-item');
+            selectAnimation(index);
+        });
+      
+        document.getElementById(`animation${index}`).checked = animation[index].selected;
+        document.getElementById(`animation${index}`).addEventListener('click',()=>{
+            animation[index].selected = document.getElementById(`animation${index}`).checked;
+        });
+        effectAnim.options[effectAnim.options.length] = new Option(anim.name, index);
+    }); 
 }
 
 function selectAnimation(index){
@@ -978,8 +1091,21 @@ function selectAnimation(index){
 function loadAnimationFromFile(event){
     const file = event.target.files[0];
     loadObjectFromJson(file, (loadedObj) => {
-        animation.push(new Animation().fromJson(loadedObj));
+        if(loadedObj.ledStrip){
+            loadLedsFromJson(loadedObj.ledStrip);
+        }
+
+        if(loadedObj.animations)
+        {
+            loadedObj.animations.forEach((anim, index) => {
+                animation.push(new Animation().fromJson(anim));        
+            });
+        }
+        else{
+            animation.push(new Animation().fromJson(loadedObj));
+        }
         selectAnimation(animation.length - 1);
+        updateAnimationList();
     });
 }
 
@@ -1007,20 +1133,41 @@ function createAnimationOnGroup() {
     }
     
     // Get selected LEDs from the current group
-    const selectedLeds = toolContext.led_selected;
-    if (!selectedLeds || selectedLeds.length === 0) return;
-    
-    // Apply color scheme to each frame starting from current frame
-    for (let frameIndex = startFrame; frameIndex < startFrame + framesCount; frameIndex++) {
-        const frame = animation[currentAnim].frames[frameIndex];
+    if(document.getElementById("apply-on-groups").checked)
+    {
+        let groupList = [];
+        let groupIdx = 0;
+        animation[currentAnim].groups.forEach((group) =>{if(group.selected) groupList.push(group)});
+        for (let frameIndex = startFrame; frameIndex < startFrame + framesCount; frameIndex++) {
+            const frame = animation[currentAnim].frames[frameIndex];
+
+            // Calculate color for this frame based on the color scheme
+            const color = colorScheme(frameIndex - startFrame, framesCount);
+
+            // Apply color to all selected LEDs in this frame
+            groupList[groupIdx++].ledList.forEach(led => {
+                frame.leds[led.index] = [...color];
+            });
+            if(groupIdx == groupList.length)
+                groupIdx = 0;
+        }
+    }
+    else{
+        const selectedLeds = toolContext.led_selected;
+        if (!selectedLeds || selectedLeds.length === 0) return;
         
-        // Calculate color for this frame based on the color scheme
-        const color = colorScheme(frameIndex - startFrame, framesCount);
-        
-        // Apply color to all selected LEDs in this frame
-        selectedLeds.forEach(led => {
-            frame.leds[led.index] = [...color];
-        });
+        // Apply color scheme to each frame starting from current frame
+        for (let frameIndex = startFrame; frameIndex < startFrame + framesCount; frameIndex++) {
+            const frame = animation[currentAnim].frames[frameIndex];
+
+            // Calculate color for this frame based on the color scheme
+            const color = colorScheme(frameIndex - startFrame, framesCount);
+
+            // Apply color to all selected LEDs in this frame
+            selectedLeds.forEach(led => {
+                frame.leds[led.index] = [...color];
+            });
+        }
     }
     
     // Update display
@@ -1133,58 +1280,60 @@ document.addEventListener('keydown', function(event) {
         return;
     }
 
-    switch(event.key.toLowerCase()) {
-        case 'm':
-            move_tool();
-            event.stopPropagation();
-            break;
-        case 'p':
-            paintSelected();
-            event.stopPropagation();
-            break;
-        case 's':
-            select_tool();
-            event.stopPropagation();
-            break;
-        case 'b':
-            paint_tool();
-            event.stopPropagation();
-            break;
-        case 'e':
-            erase_tool();
-            event.stopPropagation();
-            break;
-        case 'd':
-            draw_tool();
-            event.stopPropagation();
-            break;
-        case 'i':
-            insertSelectedLeds();
-            event.stopPropagation();
-            break;
-        case 'u':
-            duplicateSelectedLeds();
-            event.stopPropagation();
-            break;
-        case 'delete':
-        case 'backspace':
-            if(!event.target.id){
-                deleteSelectedLeds();
+    if(event.ctrlKey){
+        switch(event.key.toLowerCase()) {
+            case 'm':
+                move_tool();
                 event.stopPropagation();
-            }
-            break;
-        case 'tab':
-            if(currentAnim != -1){ 
-                if (event.shiftKey) {
-                    if(toolContext.current_group > 0)
-                        selectGroup(toolContext.current_group - 1);
-                } else {
-                    if(toolContext.current_group < animation[currentAnim].groups.length - 1)
-                        selectGroup(toolContext.current_group + 1);
+                break;
+            case 'p':
+                paintSelected();
+                event.stopPropagation();
+                break;
+            case 's':
+                select_tool();
+                event.stopPropagation();
+                break;
+            case 'b':
+                paint_tool();
+                event.stopPropagation();
+                break;
+            case 'e':
+                erase_tool();
+                event.stopPropagation();
+                break;
+            case 'd':
+                draw_tool();
+                event.stopPropagation();
+                break;
+            case 'i':
+                insertSelectedLeds();
+                event.stopPropagation();
+                break;
+            case 'u':
+                duplicateSelectedLeds();
+                event.stopPropagation();
+                break;
+            case 'delete':
+            case 'backspace':
+                if(!event.target.id){
+                    deleteSelectedLeds();
+                    event.stopPropagation();
                 }
-            }
-            event.stopPropagation();
-            break;
+                break;
+            case 'tab':
+                if(currentAnim != -1){ 
+                    if (event.shiftKey) {
+                        if(toolContext.current_group > 0)
+                            selectGroup(toolContext.current_group - 1);
+                    } else {
+                        if(toolContext.current_group < animation[currentAnim].groups.length - 1)
+                            selectGroup(toolContext.current_group + 1);
+                    }
+                }
+                event.stopPropagation();
+                break;
+        }
     }
 });
 
@@ -1258,6 +1407,7 @@ function undo() {
     animation = [];
     previousState.animation.forEach((anim) => animation.push(new Animation().fromJson(anim)));
     ledStrip = new LedStrip(0, []).fromJson(previousState.ledStrip);
+    audioToolContext.audioCtrl.setLedStrip(ledStrip);
     currentFrame = previousState.currentFrame;
     currentAnim = previousState.currentAnim;
     //toolContext = previousState.toolContext;
@@ -1287,6 +1437,7 @@ function redo() {
     animation = []
     nextState.animation.forEach((anim) => animation.push(new Animation().fromJson(anim)));
     ledStrip = new LedStrip(0, []).fromJson(nextState.ledStrip);
+    audioToolContext.audioCtrl.setLedStrip(ledStrip);
     currentFrame = nextState.currentFrame;
     currentAnim = nextState.currentAnim;
     //toolContext = nextState.toolContext;
@@ -1407,6 +1558,8 @@ window.addEventListener('load', function () {
     document.getElementById("ledCanvasLayout").height = height.value;
     document.getElementById("ledCanvasAnimation").width = width.value;
     document.getElementById("ledCanvasAnimation").height = height.value;
+    document.getElementById("ledCanvasEffects").width = width.value;
+    document.getElementById("ledCanvasEffects").height = height.value;
   });
 
 function canvasDImChange(){
@@ -1419,6 +1572,9 @@ function canvasDImChange(){
     document.getElementById("ledCanvasLayout").height = height;
     document.getElementById("ledCanvasAnimation").width = width;
     document.getElementById("ledCanvasAnimation").height = height;
+    document.getElementById("ledCanvasEffects").width = width;
+    document.getElementById("ledCanvasEffects").height = height;
+    
 }
 
 
@@ -1433,4 +1589,252 @@ function toggleAnimationSidebar() {
 }
 
 
+function toggleEffectsSidebar() {
+    document.getElementById('effects-sidebar').classList.toggle('collapsed');
+    document.getElementById('effects-close-sidebar').classList.toggle('collapsed');
+}
 
+
+
+
+
+
+const ledCanvasEffects = document.getElementById('ledCanvasEffects');
+
+let audioToolContext = {
+    audioCtrl: undefined,
+    audioSpectrum: undefined
+}
+
+const audio = document.getElementById("audioElement");
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+audioToolContext.audioCtrl = new AudioLedController(ledCanvasEffects, ledStrip);
+
+const specCanvas = document.getElementById("spectrum-canvas")
+const analyser = audioContext.createAnalyser();
+analyser.fftSize = 2048;
+analyser.connect(audioContext.destination);
+
+
+
+audioToolContext.audioSpectrum = new AudioSpectrum(specCanvas);
+audioToolContext.audioCtrl.setAnalayzer(analyser);
+audioToolContext.audioSpectrum.setAnalayzer(analyser);
+
+// Connect the audio source to the analyzer
+const source = audioContext.createMediaElementSource(audio);
+source.connect(analyser);
+const gain_node = audioContext.createGain();
+gain_node.connect( analyser );
+gain_node.gain.value = 1;
+
+
+// Ensure the context is resumed after user interaction (required by browsers)
+audioElement.addEventListener("play", () => {
+    if (audioContext.state === "suspended") {
+        audioContext.resume();
+    }
+    audioToolContext.audioCtrl.start();
+    audioToolContext.audioSpectrum.start();
+});
+
+audio.addEventListener("pause", () => {audioToolContext.audioCtrl.stop(); audioToolContext.audioSpectrum.stop()});
+audio.addEventListener("ended", () => {audioToolContext.audioCtrl.stop(); audioToolContext.audioSpectrum.stop()});
+
+
+function audioDrawFrame() {
+    const ctx = ledCanvasEffects.getContext('2d');
+    ctx.clearRect(25, 0, ledCanvasEffects.width-25, ledCanvasEffects.height-25);    
+    p = new Path2D();
+    ctx.beginPath();
+    ctx.strokeStyle = `rgb(157, 157, 157)`;
+    ledStrip.ledPath.forEach((point, index) => {
+        ctx.lineTo(point.x + 10, point.y + 10);
+    });
+    ctx.stroke();
+
+    let frame = undefined;
+    if(currentAnim != -1 && currentFrame != -1)
+    {
+        frame = animation[currentAnim].frames[currentFrame];
+    }
+    ledStrip.ledPath.forEach((color, index) => {
+        p = new Path2D();
+        if(ledStrip.isDisabled(index)){
+            
+        }
+        else{
+            if(frame){
+                color = frame.leds[index];
+                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            }
+            else
+                ctx.fillStyle = "black";
+            
+            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
+            ctx.fill(p);
+        }
+        
+    });
+}
+
+function updateEffectsThumbnails() {
+    if(currentAnim == -1) return;
+    effectFrameThumbnails.innerHTML = '';
+    animation[currentAnim].frames.forEach((_, index) => {
+        const div = document.createElement('div');
+        div.classList.add("frame-thumbnail");
+        // Create a small canvas for the thumbnail
+        const thumbnailCanvas = document.createElement('canvas');
+        thumbnailCanvas.width = 60;
+        thumbnailCanvas.height = 60;
+        const thumbnailCtx = thumbnailCanvas.getContext('2d');
+        
+        // Draw a scaled-down version of the frame
+        const frame = animation[currentAnim].frames[index];
+        const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
+        const offsetX = (60 - scale*toolContext.canvasWidth)/2;
+        const offsetY = (60 - scale*toolContext.canvasHeight)/2;
+
+
+
+        // Draw LEDs on the thumbnail canvas
+        thumbnailCtx.fillStyle = "white";
+        thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+        
+        ledStrip.ledPath.forEach((point, ledIndex) => {
+            if (frame.leds[ledIndex] && !ledStrip.isDisabled(ledIndex)) {
+                const color = frame.leds[ledIndex];
+                thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                thumbnailCtx.fillRect(
+                    offsetX + point.x * scale, 
+                    offsetY + point.y * scale, 
+                    2, 2
+                );
+            }
+        });
+        
+        // Append the canvas to the div
+        div.appendChild(thumbnailCanvas);
+        if(index == currentFrame)
+            div.classList.add('frame-thumbnail-current');
+        div.draggable = true;
+        div.onclick = () => { 
+            effectFrameThumbnails.children.item(currentFrame).classList.remove('frame-thumbnail-current')
+            currentFrame = index;
+            effectFrameThumbnails.children.item(currentFrame).classList.add('frame-thumbnail-current');
+            drawFrame(); 
+        };
+        div.dataset.frameIndex = index;
+        effectFrameThumbnails.appendChild(div);
+    });
+}
+
+
+function loadEffectsFromFile(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const data = JSON.parse(e.target.result);
+        
+        // Load LED strip
+        if(data.ledStrip)
+            loadLedsFromJson(data.ledStrip);
+        
+        // Load animations
+        if(data.animations){            
+                animation = data.animations.map(anim => {
+                const newAnim = new Animation();
+                newAnim.name = anim.name;
+                newAnim.frames = anim.frames;
+                newAnim.groups = anim.groups;
+                return newAnim;
+            });
+            selectAnimation(animation.length - 1);
+            updateAnimationList();
+        }
+
+        // Load effects
+        if(data.effects)
+        {
+            effects = data.effects.map(e => {
+                const targetAnim = animation[e.effect.animationIndex];
+                let effect;
+                
+                if (e.effect.type === 'pulse') {
+                    effect = new EffectPulse(targetAnim, e.effect.settings);
+                } else if(e.effect.type === 'anim'){
+                    effect = new EffectAnim(targetAnim, e.effect.settings);
+                } else if(e.effect.type === 'trigger'){
+                    effect = new EffectTriger(animation[e.effect.AnimationIndex], targetAnim,  e.effect.settings);
+                }
+
+                return {effect: effect, selected: false};
+            });
+            updateEffectList();
+            updateEffectControl(-1);
+            updateBandsInSpectrum();
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+
+function changeAudioControlsVisibilty(){
+    const micControls = document.querySelectorAll('.mic-controls');
+    const audioFileControls = document.querySelectorAll('.audio-file-controls');
+    if(document.getElementById("microphone-input").checked == true)
+    {
+        micControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        audioFileControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        audio.pause()
+    }
+    else
+    {
+        audioFileControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        micControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        stop_mic();
+    }
+}
+var micSource = null;
+
+function start_mic(){
+    if(micSource)
+    {
+        micSource.connect(gain_node)
+        audioToolContext.audioCtrl.start();
+        audioToolContext.audioSpectrum.start();
+    }
+    else{
+    if (!navigator.getUserMedia)
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+                      navigator.mozGetUserMedia || navigator.msGetUserMedia;
+    
+    if (navigator.getUserMedia){
+    
+    navigator.getUserMedia({audio:true}, 
+      function(stream) {
+        micSource = audioContext.createMediaStreamSource(stream);
+        if (audioContext.state === "suspended") {
+            audioContext.resume();
+        }
+        start_mic()
+      },
+      function(e) {
+        alert('Error capturing audio.');
+      }
+    );
+    
+    } else { alert('getUserMedia not supported in this browser.'); }
+    }
+}
+
+function stop_mic(){
+    if(micSource){
+        micSource.disconnect()
+        audioToolContext.audioCtrl.stop();
+        audioToolContext.audioSpectrum.stop();
+    }
+}

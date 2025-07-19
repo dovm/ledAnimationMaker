@@ -7,8 +7,8 @@
     <title>LED Animation Editor</title>
     <link href="bootstrap-5.3.6-dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="fa.min.css" rel="stylesheet">
-    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body {
             display: flex;
@@ -226,7 +226,25 @@
             display: block;
             
         }
+
+        .select-box{
+            width: 0px;
+            height: 0px;
+            position: relative;
+            background: #53525229;
+            left: 0px;
+            top: 0px;
+            border: 1px solid black; 
+            pointer-events: none
+        }
         
+        .status-line{
+            height: 20px;
+            justify-content: end;
+            gap: 5px;
+            display: flex;
+            flex-direction: row;
+        }
     </style>
 </head>
 
@@ -259,7 +277,7 @@
                             <div class="box-wrapper">
                                 <span class="box-label">File Operations</span>
                                 <div class="input-group">
-                                    <input type="file" class="form-control" onclick="loadLedsConfig(event)">
+                                    <input type="file" class="form-control" onchange="loadLedsConfig(event)">
                                     </input>
                                     <button type="button" class="btn btn-default" onclick="saveLedsConfig()">
                                         <span class="fa-solid fa-save"></span>
@@ -337,8 +355,20 @@
                                 </div>     
                             </div>
                             </div>
-                            <div class="h-100 canvas-container">
-                            <canvas id="ledCanvasLayout" class="canvas-default-size"></canvas>
+                            <div class="overflow-auto d-flex flex-column flex-grow-1">
+                                <div class="h-100 canvas-container">
+                                    <div style="position: relative; width: 0; height: 0">
+                                        <div id="layout-sel-box" class="select-box"></div> 
+                                    </div>   
+                                    <canvas id="ledCanvasLayout" class="canvas-default-size"></canvas>
+                                </div>
+                                <div class="status-line">
+                                    <label id="status-line-led-number" style="width: 3rem;">0</label>
+                                    <span> | </span>
+                                    <label id="status-line-selected-leds" style="width: 9rem;">0 leds</label>
+                                    <span> | </span>
+                                    <label id="status-line-coordinates" style="width: 11rem;">  0 /   0</label>
+                                </div>
                             </div>
                         </div>
                         
@@ -363,9 +393,10 @@
                                         <button type="button" class="btn btn-default" onclick="deleteAnimation()">
                                             <span class="fa-solid fa-trash"></span>
                                         </button>
-                                        <button type="button" class="btn btn-default" onclick="loadAnimationFromFile()">
+                                        <label class="btn btn-default" for="load-animation">
                                             <span class="fa-solid fa-folder-open"></span>
-                                        </button>
+                                        </label>
+                                        <input onchange="loadAnimationFromFile(event)" type="file" id="load-animation" accept=".json" class="hidden-input"/>  
                                         <button type="button" class="btn btn-default" onclick="saveAnimationToFile()">
                                             <span class="fa-solid fa-save"></span>
                                         </button>
@@ -413,7 +444,7 @@
                             </div>
 
                         </div>
-                        <div id="right-side-bar" class="right-sidebar">
+                        <div id="right-side-bar" class="right-sidebar d-flex flex-column">
                             <div class="box-wrapper">
                                 <span class="box-label">Group Animation</span>
                                 <div class="effect-control">
@@ -424,9 +455,13 @@
                                     <input class="form-control form-control-color" type="color" id="startColor" value="#ff0000">
                                     <input class="form-control form-control-color" type="color" id="endColor" value="#0000ff">
                                 </div>
+                                <div class="effect-control input-group">
+                                    <input class="" type="checkbox" id="apply-on-groups">
+                                    <span>Groups</span>
+                                </div>
                                 <div class="d-flex align-items-center" role="group">
                                     <span for="options" class="form-label mb-0">Effect:</span>
-                                        <select  class="select-input form-select w-auto">
+                                        <select id="colorScheme" class="select-input form-select w-auto">
                                             <option value="rainbow">Rainbow</option>
                                             <option value="fade">Fade</option>
                                             <option value="random">Random</option>
@@ -487,8 +522,173 @@
                     </div>
                 </div>
             </div>
-            <div class="tab-pane fade  border border-top-0 rounded-bottom" id="effects" role="tabpanel">
-
+            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="effects" role="tabpanel">
+                <div class="h-100 d-flex flex-column tab_container">
+                    <div class="h-100 overflow-auto d-flex ">
+                        <div id="effects-sidebar" class="sidebar d-flex flex-column">
+                            <button type="button" class="btn btn-default" style="width: fit-content;" onclick="toggleEffectsSidebar()">
+                                <span class="fa-solid fa-xmark"></span>
+                            </button>
+                            <div id="controls">
+                                <div id="effect-control">
+                                    <div class="box-wrapper gap-2">
+                                        <div class="box-label">Effect:</div>
+                                
+                                        <span>Frequency Range:</span>
+                                        <div class="input-group d-flex gap-2 align-items-center">
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-min-range">
+                                            <span class="input-group-addon">to</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-max-range">
+                                        </div>
+                                        
+                                        <span>Level Range:</span>
+                                        <div class="input-group d-flex gap-2 align-items-center">
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-min-range">
+                                            <span class="input-group-addon">to</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-max-range">
+                                        </div>
+                                        <div class="trigger-control d-none gap-2 align-items-center">
+                                            <span>loading animation</span>
+                                            <select class="select-input form-select w-auto" id="effect-end-animation"></select>
+                                        </div>
+                                        <div class="trigger-control d-none gap-2 align-items-center">
+                                            <span>time window</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-time-window">
+                                        </div>
+                                        <div class="trigger-control d-none gap-2 align-items-center">
+                                            <span>frame rate</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-animation-rate">
+                                        </div>
+                                        <div class="anim-control d-none gap-2 align-items-center">
+                                            <span>Threshold:</span>
+                                            <input class="form-control" type="number" id="effect-threshold">
+                                        </div>
+                                        <div class="input-group mt-2">
+                                            <select class="select-input form-select w-auto" id="effect-type">
+                                                <option>Pulse</option>
+                                                <option>Animation</option>
+                                                <option>Trigger</option>
+                                            </select>
+                                            <select class="select-input form-select w-auto" id="effect-anim"></select>
+                                            <button onclick="addEffect()" class="btn btn-default">
+                                                <span class="fa-solid fa-plus"></span>
+                                            </button>
+                                        </div>  
+                                        
+                                        
+                                        
+                                    </div>
+                                </div>
+                                <div class="box-wrapper">
+                                    <div class="box-label">Effect list:</div>
+                                    <div class="btn-group">
+                                    <button type="button" class="btn btn-default" onclick="saveEffectsToFile()">
+                                        <span class="fa-solid fa-save"></span>
+                                    </button>
+                                    <label class="btn btn-default" for="load-effects">
+                                        <span class="fa-solid fa-folder-open"></span>
+                                    </label>
+                                    <input onchange="loadEffectsFromFile(event)" type="file" id="load-effects" accept=".json" class="hidden-input"/>    
+                                    <button onclick="deleteEffect()" class="btn btn-default">
+                                        <span class="fa-solid fa-trash"></span>
+                                    </button>
+                                    <button onclick="updateEffect()" class="btn btn-default">
+                                        <span class="fa-solid fa-refresh"></span>
+                                    </button>
+                                    </div>
+                                    <div>
+                                        <div id="effect-list"></div>
+                                    </div>
+                                </div>
+                                </div>
+                        </div>
+                        <div id="effects-close-sidebar" class="close-sidebar">
+                            <button type="button" class="btn btn-default" onclick="toggleEffectsSidebar()">
+                                <span class="fa-solid fa-angle-right"></span>
+                            </button>
+                        </div>
+                        <div class="overflow-auto d-flex flex-column flex-grow-1 pt-1">
+                            <div class="h-100 canvas-container">
+                                <canvas id="ledCanvasEffects" class="canvas-default-size"></canvas>
+                            </div>
+                        
+                            <div id="spectrum-display-container" class="pt-1 ps-1" style="height: 170px; width: 100%;">
+                                <div style="position: relative; width: 0; height: 0">
+                                    <div id="spectrum-sel-box" class="select-box"></div> 
+                                </div>   
+                                <canvas id="spectrum-canvas"></canvas>
+                            </div>
+                        </div>
+                        <div id="audio-toolbar" class="right-sidebar d-flex flex-column">
+                            <div class="box-wrapper">
+                                <span class="box-label">Audio Controls</span>
+                                <div>
+                                    <div class="form-check">
+                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="microphone-input">
+                                    <label class="form-check-label" for="microphone-input">
+                                      Microphone
+                                    </label>
+                                  </div>
+                                  <div class="form-check">
+                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="audio-file-input" checked>
+                                    <label class="form-check-label" for="audio-file-input">
+                                      Audio File
+                                    </label>
+                                  </div>
+                                </div>
+                                <div class="d-flex flex-column audio-file-controls">
+                                <div class="btn-toolbar">
+                                    <div class="btn-group">
+                                        <label class="btn btn-default" for="audioFile">
+                                            <span class="fa-solid fa-folder-open"></span>
+                                        </label>
+                                        <input onchange="updateAudioFileName(event)" title="load audio file" type="file" id="audioFile" accept="audio/*" class="hidden-input"/>
+                                        <label id="audio-file-name" style="overflow: hidden; max-width: 160px; white-space: nowrap;">File Not Selected</label>
+                                    </div>
+                                </div>
+                                <audio style="width: 200px;" id="audioElement" controls></audio>
+                                </div>
+                                <div class="d-none mic-controls">
+                                    <div class="btn-group">
+                                        <button onclick="start_mic()" class="btn btn-default">
+                                            <span class="fa-solid fa-play"></span>
+                                        </button>
+                                        <button onclick="stop_mic()" class="btn btn-default">
+                                            <span class="fa-solid fa-pause"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>  
+                            <div class="h-100 box-wrapper overflow-auto d-flex flex-column">
+                                <span class="box-label">Animation list</span>
+                                <ul id="effects-animation-list" class="list-group overflow-y-auto">
+                                </ul>   
+                            </div>
+                        </div>
+                    </div>
+                    <div id="timeline-toolbar">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-default" onclick="prevFrame()">
+                                    <span class="fa-solid fa-chevron-left"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="nextFrame()">
+                                    <span class="fa-solid fa-chevron-right"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="playAnimation()">
+                                    <span class="fa-solid fa-play"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="exportAnimation()">
+                                    <span class="fa-solid fa-file-export"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="timeline">
+                            <div id="effect-frame-thumbnails" class="timeline-wrapper">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -503,7 +703,9 @@
         <script src="bootstrap-5.3.6-dist/js/bootstrap.bundle.min.js"></script>
         <script src="led_common.js"></script>
         <script src="audio_modulator.js"></script>
+        <script src="audio_spectrum.js"></script>
         <script src="led_editor.js"></script>
+        <script src="led_audio_editor.js"></script>
 
 </body>
 

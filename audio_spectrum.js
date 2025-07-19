@@ -1,22 +1,17 @@
 class AudioSpectrum {
-    constructor(audioContext, canvas, ledStrip) {
+    constructor(canvas, ledStrip) {
         this.canvas = canvas;
-        this.audioContext = audioContext;
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 2048;
         this.audioEnd = false;
         this.minX = 0;
-        this.maxX = this.analyser.fftSize/2;
         this.minY = 0;
         this.maxY = 255;
         this.sampleRate = 44100;
         this.bands = [];
     }
 
-    setSrc(sourceNode){
-        this.source = sourceNode;
-        sourceNode.connect(this.analyser);
-        this.analyser.connect(audioContext.destination);
+    setAnalayzer(analyser){
+        this.analyser = analyser;
+        this.maxX = this.analyser.fftSize/2;
     }
 
     stop(){
@@ -76,23 +71,29 @@ class AudioSpectrum {
     }
 
     drawSpectrum(fftData) {
+        const startX = 25;
+        const width = this.canvas.width - startX;
+        const height = this.canvas.height - 15;
+
         const ctx = this.canvas.getContext('2d');
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        let stepX = this.canvas.width/(this.maxX - this.minX);
-        let stepY = this.canvas.height/(this.maxY - this.minY);
+        ctx.clearRect(startX, 0, width, height);
+        
+        let stepX = width/(this.maxX - this.minX);
+        let stepY = height/(this.maxY - this.minY);
+        
         ctx.beginPath();
         
         this.bands.forEach(band => {
             const minIndex = this.getIdxFromFreq(band[0]);
             const maxIndex = this.getIdxFromFreq(band[1]);
             ctx.strokeStyle = "rgb(191, 107, 107)";
-            ctx.strokeRect(this.clipX(minIndex)*stepX, 0, this.clipX(maxIndex)*stepX, this.canvas.height);
+            ctx.strokeRect(startX + this.clipX(minIndex)*stepX, 0, this.clipX(maxIndex)*stepX - this.clipX(minIndex)*stepX, height);
             ctx.fillStyle = "rgba(156, 36, 3, 0.28)";
-            ctx.fillRect(this.clipX(minIndex)*stepX, 0, this.clipX(maxIndex)*stepX, this.canvas.height);
+            ctx.fillRect(startX + this.clipX(minIndex)*stepX, 0, this.clipX(maxIndex)*stepX - this.clipX(minIndex)*stepX, height);
         });
 
         for (let i = this.minX; i < this.maxX; i++) {
-             ctx.lineTo(stepX*i, this.canvas.height - stepY*this.clipY(fftData[i]));
+             ctx.lineTo(startX + stepX*(i - this.minX), height - stepY*(this.clipY(fftData[i]) - this.minY) );
         }
         ctx.stroke();
     }
