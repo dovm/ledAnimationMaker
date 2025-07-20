@@ -239,11 +239,12 @@
         }
         
         .status-line{
-            height: 20px;
+            min-height: 20px;
             justify-content: end;
             gap: 5px;
             display: flex;
             flex-direction: row;
+            flex-shrink: 0;
         }
     </style>
 </head>
@@ -316,9 +317,6 @@
                             <div class="toolbar">
                             <div class="btn-toolbar" role="toolbar">
                                 <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
-                                    <button type="button" class="btn btn-default" onclick="move_tool()">
-                                        <span class="fa-solid fa-up-down-left-right"></span>
-                                    </button>
                                     <button type="button" class="btn btn-default" onclick="select_tool()">
                                         <span class="fa-solid fa-object-group"></span>
                                     </button>
@@ -356,7 +354,7 @@
                             </div>
                             </div>
                             <div class="overflow-auto d-flex flex-column flex-grow-1">
-                                <div class="h-100 canvas-container">
+                                <div class="canvas-container">
                                     <div style="position: relative; width: 0; height: 0">
                                         <div id="layout-sel-box" class="select-box"></div> 
                                     </div>   
@@ -440,7 +438,7 @@
 
                             </div>
                             <div class="overflow-auto d-flex flex-column flex-grow-1">
-                                <div class="h-100 canvas-container">
+                                <div class="canvas-container">
                                     <div style="position: relative; width: 0; height: 0">
                                         <div id="animation-sel-box" class="select-box"></div> 
                                     </div> 

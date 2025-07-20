@@ -445,21 +445,19 @@ function brush_mouseup(event){ toolContext.painting = false; }
 function brush_mousemove(event){ 
     if (!toolContext.painting) return;
     const {x, y} = fixPointScale(event);
-    ledStrip.ledPath.forEach((point, index) => {
-        if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-            animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
-        }
-    });
+    const {point, index } = get_pressed_led({x, y})
+    if(index != -1){
+        animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
+    }
     drawFrame();
 }
 
 function brush_click(event){
     const {x, y} = fixPointScale(event);
-    ledStrip.ledPath.forEach((point, index) => {
-            if(x - point.x > 0 && x - point.x < 20 && y - point.y > 0 && y - point.y < 20){
-                animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
-            }
-    });
+    const {point, index } = get_pressed_led({x, y})
+    if(index != -1){
+        animation[currentAnim].frames[currentFrame].leds[index] = [...toolContext.brushColor];
+    }
     drawFrame();
 }
 
@@ -483,6 +481,7 @@ function select_mousedown(event){
             {
                 toolContext.move_start = {x,y};
                 toolContext.moving = true;
+                canvasLayout.style.cursor = "move";
                 saveState();
                 return;
             }
@@ -509,6 +508,7 @@ function getLedsInSelectedBox(selectBox)
 function select_mouseup(event){
     if(toolContext.moving == true){
         toolContext.moving = false;
+        canvasLayout.style.cursor = "default";
         if(toolContext.moved){
             toolContext.moved = false;
             toolContext.selectedLeds.forEach((led, index) =>{
@@ -798,11 +798,11 @@ brushColorInput.addEventListener('input', () => {
     toolContext.brushColor = [parseInt(hex.substr(1,2), 16), parseInt(hex.substr(3,2), 16), parseInt(hex.substr(5,2), 16)];
 });
 
-function paint_tool(){ toolContext.active_tool = "brush"; }
+function paint_tool(){ toolContext.active_tool = "brush"; canvasLayout.style.cursor = "default";}
 
-function select_tool(){ toolContext.active_tool = "select"; }
+function select_tool(){ toolContext.active_tool = "select"; canvasLayout.style.cursor = "default"; }
 
-function draw_tool(){  toolContext.active_tool = "draw"; }
+function draw_tool(){  toolContext.active_tool = "draw"; canvasLayout.style.cursor = "copy"; }
 
 function paintSelected(){
     toolContext.selectedLeds.forEach((led, index) =>{
@@ -1325,10 +1325,6 @@ document.addEventListener('keydown', function(event) {
 
     if(event.ctrlKey){
         switch(event.key.toLowerCase()) {
-            case 'm':
-                move_tool();
-                event.stopPropagation();
-                break;
             case 'p':
                 paintSelected();
                 event.stopPropagation();
