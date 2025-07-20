@@ -363,11 +363,11 @@
                                     <canvas id="ledCanvasLayout" class="canvas-default-size"></canvas>
                                 </div>
                                 <div class="status-line">
-                                    <label id="status-line-led-number" style="width: 3rem;">0</label>
+                                    <label id="layout-status-line-led-number" style="width: 3rem;">0</label>
                                     <span> | </span>
-                                    <label id="status-line-selected-leds" style="width: 9rem;">0 leds</label>
+                                    <label id="layout-status-line-selected-leds" style="width: 9rem;">0 leds</label>
                                     <span> | </span>
-                                    <label id="status-line-coordinates" style="width: 11rem;">  0 /   0</label>
+                                    <label id="layout-status-line-coordinates" style="width: 11rem;">  0 /   0</label>
                                 </div>
                             </div>
                         </div>
@@ -439,8 +439,20 @@
                                 </div>
 
                             </div>
-                            <div class="h-100 canvas-container">
-                                <canvas id="ledCanvasAnimation" class="canvas-default-size"></canvas>
+                            <div class="overflow-auto d-flex flex-column flex-grow-1">
+                                <div class="h-100 canvas-container">
+                                    <div style="position: relative; width: 0; height: 0">
+                                        <div id="animation-sel-box" class="select-box"></div> 
+                                    </div> 
+                                    <canvas id="ledCanvasAnimation" class="canvas-default-size"></canvas>
+                                </div>
+                                <div class="status-line">
+                                    <label id="animation-status-line-led-number" style="width: 3rem;">0</label>
+                                    <span> | </span>
+                                    <label id="animation-status-line-selected-leds" style="width: 9rem;">0 leds</label>
+                                    <span> | </span>
+                                    <label id="animation-status-line-coordinates" style="width: 11rem;">  0 /   0</label>
+                                </div>
                             </div>
 
                         </div>

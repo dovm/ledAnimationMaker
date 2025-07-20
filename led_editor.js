@@ -11,28 +11,122 @@ const frameThumbnails = document.getElementById('frame-thumbnails');
 const effectFrameThumbnails = document.getElementById('effect-frame-thumbnails');
 const animationList = document.getElementById('animation-list');
 
+class Point{
+    constructor(x, y){
+        this.x = x;
+        this.y = y;
+    }
+}
 
+class Box{
+    constructor(p1, p2){
+        this.top = this.minY(p1,p2);
+        this.left = this.minX(p1,p2);
+        this.bottom = this.maxY(p1,p2);
+        this.right = this.maxX(p1,p2);
+    }
+
+    width(){ return this.right - this.left;}
+    height(){ return this.bottom - this.top;}
+
+    maxX(p1,p2){ return Math.max(p1.x,p2.x);}
+
+    maxY(p1,p2){return Math.max(p1.y,p2.y);}
+
+    minX(p1,p2){return Math.min(p1.x,p2.x);}
+
+    minY(p1,p2){return Math.min(p1.y,p2.y);}
+
+    intersects(box){
+        return !(
+            box.right < this.left ||
+            box.left > this.right ||
+            box.bottom < this.top ||
+            box.top > this.bottom
+        );
+    }
+}
+
+class SelectBox{
+    constructor(selBoxObject)
+    {
+        this.selBox = selBoxObject;
+        this.select_mode = "start",
+        this.start =  new Point(0,0);
+        this.end = new Point(0,0);
+        this.box = new Box(this.start, this.end);
+    }
+
+    setSelBox(selBoxObject){ this.selBox = selBoxObject;}
+
+    getMode(){return this.select_mode;}
+    setMode(mode){this.select_mode = mode; return this;}
+
+    setStart(p){
+        this.start = p;
+        this.box = new Box(this.start, this.end);
+        return this;
+    }
+
+    setEnd(p){
+        this.end = p;
+        this.box = new Box(this.start, this.end);
+        return this;
+    }
+
+    reset(){
+        this.start =  new Point(0,0);
+        this.end = new Point(0,0);
+        this.box = new Box(this.start, this.end);
+        return this;
+    }
+
+    draw(){
+        this.selBox.style.top = this.box.top +"px";
+        this.selBox.style.left = this.box.left +"px";
+        this.selBox.style.width = this.box.width() + "px";
+        this.selBox.style.height = this.box.height() + "px";
+        return this;
+    }
+}
 
 let animation = [];
 let currentAnim = -1
 let currentFrame = -1;
 let ledStrip = new LedStrip(0, []);
+let layoutSelectBox = new SelectBox(document.getElementById("layout-sel-box"));
+let statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
+let statusLineLedNumber = document.getElementById("layout-status-line-led-number")
+
 let toolContext = {
     canvasWidth: 500,
     canvasHeight: 500,
     active_tool: "select",
     moving: false,
-    moving_led: undefined,
     painting: false,
     brushColor: [255, 0, 0],
-    select_mode: "start",
-    select_start: {x:0,y:0},
-    select_end: {x:0,y:0},
     led_selected: [],
     current_group: -1,
-    frameOverIndex: -1,
     scale: 1,
 }
+
+var effectsTab = document.getElementById("layout-tab")
+
+effectsTab.addEventListener("shown.bs.tab", ()=>{
+    drawFrame();
+    layoutSelectBox.setSelBox(document.getElementById("layout-sel-box"))
+    statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
+    statusLineLedNumber = document.getElementById("layout-status-line-led-number")
+});
+
+var effectsTab = document.getElementById("animation-tab")
+
+effectsTab.addEventListener("shown.bs.tab", ()=>{
+    drawFrame();
+    layoutSelectBox.setSelBox(document.getElementById("animation-sel-box"))
+    statusLineCoordinates = document.getElementById("animation-status-line-coordinates")
+    statusLineLedNumber = document.getElementById("animation-status-line-led-number")
+});
 
 function loadAnimation(){
 
@@ -115,15 +209,8 @@ function drawFrameLayout() {
         p.roundRect(point.x, point.y, 20, 20, 20);
         ctx.fill(p);
     });
-    if(toolContext.select_mode == "selecting")
-    {
-        //width = toolContext.select_end.x - toolContext.select_start.x;
-        //height = toolContext.select_end.y - toolContext.select_start.y;
-        //ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
-        //ctx.fillRect(toolContext.select_start.x, toolContext.select_start.y, width, height);
-    }
     
-    document.getElementById('status-line-selected-leds').textContent = `${toolContext.led_selected.length}`;
+    document.getElementById('layout-status-line-selected-leds').textContent = `${toolContext.led_selected.length}`;
     toolContext.led_selected.forEach((led, index) =>{
         p = new Path2D();
         p.roundRect(led.point.x-1, led.point.y-1, 22, 22, 20)
@@ -172,14 +259,7 @@ function drawFrameAnimation() {
             }
         });
     }
-    if(toolContext.select_mode == "selecting")
-    {
-        width = toolContext.select_end.x - toolContext.select_start.x;
-        height = toolContext.select_end.y - toolContext.select_start.y;
-        ctx.fillStyle = "rgba(50, 50, 50, 0.5)";
-        ctx.fillRect(toolContext.select_start.x,toolContext.select_start.y, width, height);
-        
-    }
+    document.getElementById('animation-status-line-selected-leds').textContent = `${toolContext.led_selected.length}`;
     toolContext.led_selected.forEach((led, index) =>{
         if(!ledStrip.isDisabled(led.index)){
             p = new Path2D();
@@ -410,32 +490,18 @@ function select_mousedown(event){
             }
         }
     }
-    toolContext.select_start = {x,y};
-    toolContext.select_end = {x,y};
-    toolContext.select_mode = "selecting";
-    const selBox = document.getElementById("layout-sel-box");
-    drawLayoutSelectionBox(selBox, toolContext.select_start, toolContext.select_end)
+    layoutSelectBox.setStart(new Point(x,y)).setEnd(new Point(x,y)).setMode("selecting").draw();
 }
 
 function getLedsInSelectedBox(selectBox)
 {
     let result = []
     ledStrip.ledPath.forEach((point, index) => { 
-        const pointBox = {
-            left: point.x+5,
-            right: point.x + 15,
-            top: point.y + 5,
-            bottom: point.y + 15
-        };
-        // Check for intersection between the two boxes
-        const intersects = !(
-            pointBox.right < selectBox.left ||
-            pointBox.left > selectBox.right ||
-            pointBox.bottom < selectBox.top ||
-            pointBox.top > selectBox.bottom
-        );
+        const pointBox = new Box(
+            new Point(point.x+5, point.y + 5),
+            new Point(point.x + 15, point.y + 15));
         
-        if(intersects){
+        if(selectBox.intersects(pointBox)){
             result.push({index, x: point.x, y: point.y, point});
         }
     });
@@ -450,34 +516,23 @@ function select_mouseup(event){
             led.y = led.point.y; 
         });
     }
-    else if(toolContext.select_mode == "selecting"){
-        let box = {
-            left: Math.min(toolContext.select_start.x, toolContext.select_end.x),
-            top: Math.min(toolContext.select_start.y, toolContext.select_end.y),
-            right: Math.max(toolContext.select_start.x, toolContext.select_end.x),
-            bottom: Math.max(toolContext.select_start.y, toolContext.select_end.y)
-        }
-
+    else if(layoutSelectBox.getMode() == "selecting"){
         if(!event.ctrlKey)
             toolContext.led_selected = []
-        getLedsInSelectedBox(box).forEach((led => {
+        getLedsInSelectedBox(layoutSelectBox.box).forEach((led => {
             if(toolContext.led_selected.findIndex(l => l.index === led.index) == -1)
                 toolContext.led_selected.push(led);
         }));
-        toolContext.select_mode = "none"
-        const selBox = document.getElementById("layout-sel-box");
-        drawLayoutSelectionBox(selBox, {x:-1,y:-1}, {x:-1,y:-1})
+        layoutSelectBox.setMode("none").reset().draw();
     }
     drawFrame();
 }
 
 function select_mousemove(event) {
     const {x, y} = fixPointScale(event);
-    if(toolContext.select_mode == "selecting")
+    if(layoutSelectBox.getMode() == "selecting")
     {
-        toolContext.select_end = {x,y};
-        const selBox = document.getElementById("layout-sel-box");
-        drawLayoutSelectionBox(selBox, toolContext.select_start, toolContext.select_end)
+        layoutSelectBox.setEnd(new Point(x,y)).draw()
     }
     else if(toolContext.moving == true){
         diffX = x - toolContext.move_start.x;
@@ -633,7 +688,7 @@ function duplicateSelectedLeds() {
     
     // Create new LEDs with offset
     const newLeds = [];
-    toolContext.led_selected.forEach(led => {
+toolContext.led_selected.forEach(led => {
         newLeds.push({
             x: led.x,
             y: led.y,
@@ -689,12 +744,9 @@ canvasLayout.addEventListener('click', (event) => {
 });
 
 canvasLayout.addEventListener('mousemove', (event) => {
-    document.getElementById('status-line-coordinates').textContent = `${event.offsetX} / ${event.offsetY}`
+    statusLineCoordinates.textContent = `${event.offsetX} / ${event.offsetY}`
     led = get_pressed_led({x:event.offsetX, y:event.offsetY})
-    if(led.index == -1)
-        document.getElementById('status-line-led-number').textContent = '-'
-    else
-        document.getElementById('status-line-led-number').textContent = `${led.index+1}`
+    statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
     tool_callbacks[toolContext.active_tool].mousemove(event)
 });
 
@@ -711,6 +763,9 @@ canvasAnimation.addEventListener('click', (event) => {
 });
 
 canvasAnimation.addEventListener('mousemove', (event) => {
+    statusLineCoordinates.textContent = `${event.offsetX} / ${event.offsetY}`
+    led = get_pressed_led({x:event.offsetX, y:event.offsetY})
+    statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
     tool_callbacks[toolContext.active_tool].mousemove(event)
 });
 
@@ -753,13 +808,11 @@ brushColorInput.addEventListener('input', () => {
     toolContext.brushColor = [parseInt(hex.substr(1,2), 16), parseInt(hex.substr(3,2), 16), parseInt(hex.substr(5,2), 16)];
 });
 
-function paint_tool(){ toolContext.active_tool = "brush"}
+function paint_tool(){ toolContext.active_tool = "brush"; }
 
-function select_tool(){ toolContext.active_tool = "select"}
+function select_tool(){ toolContext.active_tool = "select"; }
 
-function draw_tool(){ 
-    toolContext.active_tool = "draw"
-}
+function draw_tool(){  toolContext.active_tool = "draw"; }
 
 function paintSelected(){
     toolContext.led_selected.forEach((led, index) =>{
@@ -784,14 +837,15 @@ function rotate90Deg(center, point){
 }
 
 function rotateTool(){
+    const leds = toolContext.led_selected;
     center = {x:0,y:0};
-    toolContext.led_selected.forEach((led,index) =>{
+    leds.forEach((led,index) =>{
         center.x += led.x;
         center.y += led.y;
     });
-    center.x = center.x/toolContext.led_selected.length;
-    center.y = center.y/toolContext.led_selected.length;
-    toolContext.led_selected.forEach((led, index) =>{
+    center.x = center.x/leds.length;
+    center.y = center.y/leds.length;
+    leds.forEach((led, index) =>{
         rotate90Deg(center, led.point);
         rotate90Deg(center, led);
     });
@@ -885,7 +939,7 @@ function selectGroup(index){
     let group = animation[currentAnim].groups[index];
     toolContext.current_group = index;
     toolContext.led_selected = [...group.ledList]
-    toolContext.select_mode = "selected";
+    layoutSelectBox.setMode("selected");
 }
 
 function removeGroup(index){
