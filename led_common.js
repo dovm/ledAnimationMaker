@@ -185,8 +185,6 @@ class LedStrip {
 
 
 
-function prevFrame() { if (currentFrame > 0) { --currentFrame; drawFrame(); updateThumbnails();} }
-function nextFrame() { if (currentFrame < animation[currentAnim].frames.length - 1) { ++currentFrame; drawFrame(); updateThumbnails(); }  }
 
 
 function exportAnimation() {

@@ -85,10 +85,10 @@ class EffectPulse {
 
     special(audioData)
     {
-        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length);
-        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length);
-        const minIndexBias = Math.floor((100 / this.sampleRate) * audioData.length);
-        const maxIndexBias = Math.ceil((200 / this.sampleRate) * audioData.length);
+        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length*2);
+        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length*2);
+        const minIndexBias = Math.floor((100 / this.sampleRate) * audioData.length*2);
+        const maxIndexBias = Math.ceil((200 / this.sampleRate) * audioData.length*2);
         let avgVolume = 0;
         for (let i = minIndex; i < maxIndex; i++) {
             avgVolume += audioData[i];
@@ -149,16 +149,20 @@ class EffectAnim {
         this.settings = settings;
     }
 
-    special(audioData)
+    getPower(audioData)
     {
-        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length);
-        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length);
+        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length*2);
+        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length*2);
         let avgVolume = 0;
         for (let i = minIndex; i < maxIndex; i++) {
             avgVolume += audioData[i];
         }
         avgVolume = avgVolume/(maxIndex - minIndex);
-        
+        return avgVolume;
+    }
+
+    special(avgVolume)
+    {
         let ret_val = false;
         if(avgVolume > this.maxLevel) {
             this.maxLevel = avgVolume;
@@ -193,7 +197,10 @@ class EffectAnim {
     }
 
     apply(audioData, currentFrame, alpha) {
-        let next = this.special(audioData);
+        let avgVolume = this.getPower(audioData);
+        if(avgVolume > this.settings.range.max || avgVolume < this.settings.range.min)
+            return;
+        let next = this.special(avgVolume);
         let frame = this.animation.frames[this.frameIndex];
         if(next){
             this.frameIndex += 1;
@@ -254,8 +261,8 @@ class EffectTriger {
 
     special(audioData)
     {
-        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length);
-        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length);
+        const minIndex = Math.floor((this.settings.HzRange.min / this.sampleRate) * audioData.length*2);
+        const maxIndex = Math.ceil((this.settings.HzRange.max / this.sampleRate) * audioData.length*2);
         let avgVolume = 0;
         for (let i = minIndex; i < maxIndex; i++) {
             avgVolume += audioData[i];
@@ -282,11 +289,11 @@ class EffectTriger {
     apply(audioData, currentFrame, alpha) {
         if(! this.isThreshold){
             if(!this.lastMeansArray)
-                this.lastMeansArray = new Array(Math.ceil(this.sampleRate/audioData.length*this.settings.timeWindow)).fill( 0);
+                this.lastMeansArray = new Array(Math.ceil(this.sampleRate/(audioData.length*2)*this.settings.timeWindow)).fill( 0);
             let avgVolume = this.special(audioData);
 
             let range_norm = this.settings.range.max - this.settings.range.min;
-            let step = this.animationRange/range_norm;
+            let step = range_norm/this.animationRange;
             let level = this.clipAndNorm(this.calcMeanOverTime(avgVolume));
 
             let frameIndex = Math.floor(level*step);

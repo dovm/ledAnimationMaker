@@ -16,7 +16,7 @@ effects = []
 animations = []
 current_frame = np.zeros((NUM_LEDS, 3), dtype=np.uint8)
 
-CHUNK = 8096
+CHUNK = 1024
 MIN_DB = -100
 MAX_DB = -30
 
@@ -31,6 +31,8 @@ def get_frequency_band_power(fft_data, start_freq, end_freq):
     # Convert FFT data to 8-bit values using fixed normalization
     fft_magnitude = np.abs(fft_data)/(CHUNK*32767)
     # Theoretical maximum for int16 with CHUNK=1024: 1024 * 32767 = 33,553,408
+    #if(fft_magnitude.any() <= 0):
+    #    return 0
     fft_mag_db = 20 * np.log10(fft_magnitude)
     fft_normalized = (fft_mag_db - MIN_DB) / (MAX_DB - MIN_DB) * 255;
     fft_normalized = np.clip(fft_normalized, 0, 255)
@@ -75,49 +77,68 @@ def effectAnim(avgVolume):
 
 last_frame_index = 0
 
+def get_mic_index(p):
+    target_name = "USB PnP Sound Device: Audio (hw:1,0)"
+    print("get_mic_index", p.get_device_count())
+    for i in range(p.get_device_count()):
+        dev = p.get_device_info_by_index(i)
+        print(dev)
+        if dev['maxInputChannels'] > 0 and target_name.lower() in dev['name'].lower():
+            print(f"Found mic at index {i}: {dev['name']}")
+            return i
+    else:
+        return -1;
+
 def process_audio():
     global last_frame_index
     """Process audio input and update LED effects"""
-    
-    wf = wave.open("temp.wav", 'rb')
-    
+
+      # Replace with your mic name or substring
     # Initialize PyAudio
     p = pyaudio.PyAudio()
+
+    device_index = -1;
+    while device_index == -1:
+        device_index = get_mic_index(p)
+        if(device_index == -1):
+            print("Microphone not found, waiting 1 second")
+            time.sleep(1)
     
+    print("Microphone found, starting audio processing" , device_index)
     # Open stream
-    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                    channels=wf.getnchannels(),
-                    rate=wf.getframerate(),
-                    output=True)
+    stream = p.open(format=pyaudio.paInt16,
+                    channels=1,
+                    rate=44100,
+                    input=True, frames_per_buffer=CHUNK, input_device_index=device_index)
+    
     global RATE
-    RATE = wf.getframerate()
+    RATE = 44100
     frame_time = CHUNK/RATE
-    wf.readframes(int(skip_time*RATE))
-    data = wf.readframes(CHUNK)
+    data = stream.read(CHUNK, exception_on_overflow = False)
     
     
     while True:
         start_time = time.time()
-        stream.write(data)
+        
         # Perform FFT
         data = np.frombuffer(data, dtype=np.int16) 
+        
         fft_data = fft(data)
+        data = stream.read(CHUNK, exception_on_overflow = False)
         #wf.readframes(CHUNK*200)
-        data = wf.readframes(CHUNK)
-        if(not data):
-            wf.rewind()
-            data = wf.readframes(CHUNK)
         # Reset current frame
         current_frame = np.zeros((NUM_LEDS, 3), dtype=np.uint8)
 
         # Process each effect
-        for effect in effects["effects"]:
+        for i in range(len(effects["effects"])):
+            effect = effects["effects"][i]
             # Get power in effect's frequency band
             #print(effect['effect']['settings']['HzRange']['min'],effect['effect']['settings']['HzRange']['max'])
             power = get_frequency_band_power(fft_data, 
                                            effect['effect']['settings']['HzRange']['min'],
                                            effect['effect']['settings']['HzRange']['max'])
             
+            print(i, "power", power)
             # Select frame based on power
             if(effect['effect']['type'] == 'pulse'):
                 animation = effects["animations"][effect['effect']['animationIndex']]
@@ -146,7 +167,7 @@ def process_audio():
                     frame_index = -1
             elif(effect['effect']['type'] == 'trigger'):
                 animation = effects["animations"][effect['effect']['animationIndex']]
-                end_animation = effects["animations"][effect['effect']['endAnimationIndex']]
+                end_animation = effects["animations"][effect['effect']['settings']['endAnimationIndex']]
                 # Calculate power over time using moving average
                 if not effect.__contains__('last_powers_array'):
                     # Initialize array to store power values over time window
@@ -168,25 +189,25 @@ def process_audio():
                 #print("power", power)
                 if power > effect['effect']['settings']['range']['max'] or (effect.__contains__('is_threshold') and effect["is_threshold"]):
                     # Trigger the end animation
-                    if not effect.__contains__('is_threshold'):
+                    if not effect.__contains__('is_threshold') or not effect['is_threshold']:
                         effect["is_threshold"] = True
                         effect["end_animation_index"] = 0
                         effect["end_animation_last_time"] = time.time()
-                        print("trigggeerrrrrrrrrrrrrrrr")
+                        print("175","trigggeerrrrrrrrrrrrrrrr")
 
                     
                     # Update end animation frame
                     current_time = time.time()
-                    print(current_time, effect["end_animation_last_time"],(1.0 / effect['effect']['settings']['animationRate']) )
+                    print("180", current_time, effect["end_animation_last_time"],(1.0 / effect['effect']['settings']['animationRate']) )
                     if current_time > (effect["end_animation_last_time"] + (1.0 / effect['effect']['settings']['animationRate'])):
                         effect["end_animation_last_time"]= current_time
                         effect["end_animation_index"] += 1
-                        print(effect["end_animation_index"], len(end_animation['frames']))
+                        print("184",effect["end_animation_index"], len(end_animation['frames']), effect["is_threshold"])
 
                         if effect["end_animation_index"] == len(end_animation['frames']):
                             effect["end_animation_index"] = 0
                             effect["is_threshold"] = False
-                            frame_index = -1
+                            frame_index = 0
                         else:
                             frame_index = effect["end_animation_index"]
                     else:
@@ -201,10 +222,10 @@ def process_audio():
                         normalized_power = (power - effect['effect']['settings']['range']['min']) / (effect['effect']['settings']['range']['max'] - effect['effect']['settings']['range']['min'])
                         normalized_power = max(0, min(1, normalized_power))  # Clamp between 0 and 1
                     
-                        frame_index = min(int(normalized_power * len(animation['frames'])), 
+                        frame_index = min(int(normalized_power * len(animation['frames']) - 0.0001), 
                                 len(animation['frames']) - 1)
                         #print("frame index", frame_index)
-            print(frame_index, effect.__contains__('is_threshold') and effect['is_threshold'])
+            print("207",  frame_index, effect.__contains__('is_threshold') and effect['is_threshold'])
             if(frame_index >= 0):
                 #print(effects["animations"][effect['effect']['animationIndex']])
                 if(effect.__contains__('is_threshold') and effect['is_threshold']):
@@ -237,7 +258,11 @@ audio_thread = threading.Thread(target=process_audio)
 audio_thread.daemon = True
 audio_thread.start()
 print("started audio thread")
-input("")
+while True:
+    time.sleep(1)
+from pprint import pprint 
+for effect in effects["effects"]:
+    pprint(effect)
 #process_audio()
 
 

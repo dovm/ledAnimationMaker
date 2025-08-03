@@ -82,10 +82,10 @@ class SelectBox{
     }
 
     draw(){
-        this.selBox.style.top = this.box.top +"px";
-        this.selBox.style.left = this.box.left +"px";
-        this.selBox.style.width = this.box.width() + "px";
-        this.selBox.style.height = this.box.height() + "px";
+        this.selBox.style.top = this.box.top*toolContext.scale +"px";
+        this.selBox.style.left = this.box.left*toolContext.scale +"px";
+        this.selBox.style.width = this.box.width()*toolContext.scale + "px";
+        this.selBox.style.height = this.box.height()*toolContext.scale + "px";
         return this;
     }
 }
@@ -111,22 +111,33 @@ let toolContext = {
     scale: 1,
 }
 
-var effectsTab = document.getElementById("layout-tab")
+var layoutTab = document.getElementById("layout-tab")
 
-effectsTab.addEventListener("shown.bs.tab", ()=>{
+layoutTab.addEventListener("shown.bs.tab", ()=>{
     drawFrame();
     layoutSelectBox.setSelBox(document.getElementById("layout-sel-box"))
     statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
     statusLineLedNumber = document.getElementById("layout-status-line-led-number")
 });
 
-var effectsTab = document.getElementById("animation-tab")
+var animationTab = document.getElementById("animation-tab")
 
-effectsTab.addEventListener("shown.bs.tab", ()=>{
+animationTab.addEventListener("shown.bs.tab", ()=>{
     drawFrame();
+    updateAnimationList();
+    updateThumbnails();
     layoutSelectBox.setSelBox(document.getElementById("animation-sel-box"))
     statusLineCoordinates = document.getElementById("animation-status-line-coordinates")
     statusLineLedNumber = document.getElementById("animation-status-line-led-number")
+});
+
+var effectsTab = document.getElementById("effects-tab")
+
+effectsTab.addEventListener("shown.bs.tab", ()=>{
+    resizeCanvasToContainer();
+    drawFrame();
+    updateAnimationList();
+    updateThumbnails();
 });
 
 function loadAnimation(){
@@ -340,13 +351,13 @@ function dragFrameStart(event) {
 function dragFrameOver(event) {
     event.preventDefault();
     const draggedFrame = document.querySelector('.dragging');
-    const frameThumbnails = document.querySelectorAll('.frame-thumbnail');
+    const thumbnails = document.querySelectorAll('.frame-thumbnail');
     const targetFrame = event.target.closest('.frame-thumbnail');
     
     if (!targetFrame || targetFrame === draggedFrame) return;
 
-    const targetIndex = Array.from(frameThumbnails).indexOf(targetFrame);
-    const draggedIndex = Array.from(frameThumbnails).indexOf(draggedFrame);
+    const targetIndex = Array.from(thumbnails).indexOf(targetFrame);
+    const draggedIndex = Array.from(thumbnails).indexOf(draggedFrame);
     
     if (targetIndex > draggedIndex) {
         targetFrame.parentNode.insertBefore(draggedFrame, targetFrame.nextSibling);
@@ -357,74 +368,91 @@ function dragFrameOver(event) {
 
 function dragFrameEnd(event) {
     event.target.classList.remove('dragging');
-    const frameThumbnails = document.querySelectorAll('.frame-thumbnail');
+    const thumbnails = event.target.parentNode.querySelectorAll('.frame-thumbnail');
     
-    const newOrder = Array.from(frameThumbnails).map(thumb => parseInt(thumb.dataset.frameIndex));
+    const newOrder = Array.from(thumbnails).map(thumb => parseInt(thumb.dataset.frameIndex));
     
     // Reorder frames in animation
     const newFrames = newOrder.map(index => animation[currentAnim].frames[index]);
     animation[currentAnim].frames = newFrames;
     
     currentFrame = newOrder.indexOf(currentFrame);
-    updateThumbnails();
+    //updateThumbnails();
     drawFrame();
+}
+
+function generateFrameThumbnail(frame){
+    const thumbnailCanvas = document.createElement('canvas');
+    thumbnailCanvas.width = 60;
+    thumbnailCanvas.height = 60;
+    const thumbnailCtx = thumbnailCanvas.getContext('2d');
+    
+    // Draw a scaled-down version of the frame
+    const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
+    const offsetX = (60 - scale*toolContext.canvasWidth)/2;
+    const offsetY = (60 - scale*toolContext.canvasHeight)/2;
+    // Draw LEDs on the thumbnail canvas
+    thumbnailCtx.fillStyle = "white";
+    thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+    
+    ledStrip.ledPath.forEach((point, ledIndex) => {
+        if (frame.leds[ledIndex] && !ledStrip.isDisabled(ledIndex)) {
+            const color = frame.leds[ledIndex];
+            thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            thumbnailCtx.fillRect(
+                offsetX + point.x * scale, 
+                offsetY + point.y * scale, 
+                2, 2
+            );
+        }
+    });
+    return thumbnailCanvas
 }
 
 // Update the updateThumbnails function to add drag and drop attributes
 function updateThumbnails() {
     if(currentAnim == -1) return;
-    frameThumbnails.innerHTML = '';
+    let timeline = undefined;
+    if(getActiveTab() == "animation-tab")
+        timeline = frameThumbnails
+    else if(getActiveTab() == "effects-tab")
+        timeline = effectFrameThumbnails;
+    timeline.innerHTML = '';
     animation[currentAnim].frames.forEach((_, index) => {
         const div = document.createElement('div');
         div.classList.add("frame-thumbnail");
         // Create a small canvas for the thumbnail
-        const thumbnailCanvas = document.createElement('canvas');
-        thumbnailCanvas.width = 60;
-        thumbnailCanvas.height = 60;
-        const thumbnailCtx = thumbnailCanvas.getContext('2d');
-        
-        // Draw a scaled-down version of the frame
-        const frame = animation[currentAnim].frames[index];
-        const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
-        const offsetX = (60 - scale*toolContext.canvasWidth)/2;
-        const offsetY = (60 - scale*toolContext.canvasHeight)/2;
-
-
-
-        // Draw LEDs on the thumbnail canvas
-        thumbnailCtx.fillStyle = "white";
-        thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
-        
-        ledStrip.ledPath.forEach((point, ledIndex) => {
-            if (frame.leds[ledIndex] && !ledStrip.isDisabled(ledIndex)) {
-                const color = frame.leds[ledIndex];
-                thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                thumbnailCtx.fillRect(
-                    offsetX + point.x * scale, 
-                    offsetY + point.y * scale, 
-                    2, 2
-                );
-            }
-        });
-        
+        const thumbnailCanvas = generateFrameThumbnail(animation[currentAnim].frames[index]);    
         // Append the canvas to the div
         div.appendChild(thumbnailCanvas);
         if(index == currentFrame)
             div.classList.add('frame-thumbnail-current');
-        div.draggable = true;
-        div.addEventListener('dragstart', dragFrameStart);
-        div.addEventListener('dragover', dragFrameOver);
-        div.addEventListener('dragend', dragFrameEnd);
-        div.onclick = () => { 
-            frameThumbnails.children.item(currentFrame).classList.remove('frame-thumbnail-current')
+
+        //make frames drageable in animation tab
+        if(getActiveTab() == "animation-tab"){
+            div.draggable = true;
+            div.addEventListener('dragstart', dragFrameStart);
+            div.addEventListener('dragover', dragFrameOver);
+            div.addEventListener('dragend', dragFrameEnd);
+        }
+        div.onclick = () => {
+            timeline.children.item(currentFrame).classList.remove('frame-thumbnail-current')
             currentFrame = index;
-            frameThumbnails.children.item(currentFrame).classList.add('frame-thumbnail-current');
+            timeline.children.item(currentFrame).classList.add('frame-thumbnail-current');
             drawFrame(); 
         };
         div.dataset.frameIndex = index;
-        frameThumbnails.appendChild(div);
+        timeline.appendChild(div);
     });
-    updateEffectsThumbnails();
+}
+
+function selectFrame(index){
+    if(index >= 0 && index <= animation[currentAnim].frames.length)
+    {
+        currentFrame = index;
+        drawFrame();
+        updateThumbnails();
+    }
 }
 
 
@@ -734,8 +762,9 @@ canvasLayout.addEventListener('click', (event) => {
 });
 
 canvasLayout.addEventListener('mousemove', (event) => {
-    statusLineCoordinates.textContent = `${event.offsetX} / ${event.offsetY}`
-    led = get_pressed_led({x:event.offsetX, y:event.offsetY})
+    const {x,y} = fixPointScale(event);
+    statusLineCoordinates.textContent = `${Math.floor(x)} / ${Math.floor(y)}`
+    const led = get_pressed_led({x, y})
     statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
     tool_callbacks[toolContext.active_tool].mousemove(event)
 });
@@ -836,7 +865,9 @@ function rotateTool(){
     center.x = center.x/leds.length;
     center.y = center.y/leds.length;
     leds.forEach((led, index) =>{
-        rotate90Deg(center, led);
+        rotate90Deg(center, ledStrip.ledPath[led.index]);
+        led.x = ledStrip.ledPath[led.index].x;
+        led.y = ledStrip.ledPath[led.index].y;
     });
     drawFrame();
 }
@@ -1030,94 +1061,75 @@ function deleteAnimation(){
 }
 
 function updateAnimationList() {
+    let animationList = undefined;
+    if(getActiveTab() == "animation-tab")
+        animationList = document.getElementById('animation-list');    
+    else if(getActiveTab() == "effects-tab")
+        animationList = document.getElementById('effects-animation-list');
+    
     animationList.innerHTML = '';
     animation.forEach((anim, index) => {
         const li = document.createElement('li');
         li.classList.add('list-group-item');
         li.innerHTML = `<input id=animation${index} type="checkbox"/>
-            <label id=animLabel${index}>${anim.name}</label>
-            <input type="text" class="form-control hidden-input" id="animLabelEdit${index}">`;
+            <label style="min-width: 30px;min-height: 20px;" id=animLabel${index}>${anim.name}</label>`;
+        if(getActiveTab() == "animation-tab")
+            li.innerHTML += `<input type="text" class="form-control hidden-input" id="animLabelEdit${index}">`;
         if(index == currentAnim)
-        {
             li.classList.add('selected-item');
-        }
+
         animationList.appendChild(li);
 
         li.addEventListener('click', (event) =>{
-            if (event.target.type === "checkbox") {
+            if (event.target.type === "checkbox")
                 return;
-            }
-            animationList.children.item(currentAnim).classList.remove('selected-item');
+            if(currentAnim != -1)
+                animationList.children.item(currentAnim).classList.remove('selected-item');
             li.classList.add('selected-item');
             selectAnimation(index);
-            updateEffectsAnimationList();
         });
-        let label = document.getElementById(`animLabel${index}`)
-        let input = document.getElementById(`animLabelEdit${index}`)
-        label.addEventListener('dblclick', () => {
-            label.classList.add("hidden-input")
-            input.value = label.textContent;
-            input.classList.remove("hidden-input")
-            input.focus();
-        });
+        
+        if(getActiveTab() == "animation-tab"){
+            let label = document.getElementById(`animLabel${index}`)
+            let input = document.getElementById(`animLabelEdit${index}`)
+            label.addEventListener('dblclick', () => {
+                label.classList.add("hidden-input")
+                input.value = label.textContent;
+                input.classList.remove("hidden-input")
+                input.focus();
+            });
 
-        const save = () => {
-            label.textContent = input.value;
-            label.classList.remove("hidden-input")
-            input.classList.add("hidden-input")
-            anim.name = label.textContent;
-            updateEffectsAnimationList();
-        };
+            const save = () => {
+                label.textContent = input.value;
+                label.classList.remove("hidden-input")
+                input.classList.add("hidden-input")
+                anim.name = label.textContent;
+            };
 
-        input.addEventListener('blur', save);
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                input.blur();
-            }
-        });
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                }
+            });
+        }
       
         document.getElementById(`animation${index}`).checked = animation[index].selected;
         document.getElementById(`animation${index}`).addEventListener('click',()=>{
             animation[index].selected = document.getElementById(`animation${index}`).checked;
         });
     });
-    updateEffectsAnimationList();
+    if(getActiveTab() == "effects-tab")
+        updateAnimationSelectLists();
 }
 
-function updateEffectsAnimationList()
+function updateAnimationSelectLists()
 {
-    const effectsAnimationList = document.getElementById("effects-animation-list");
     const effectAnim = document.getElementById("effect-anim");
-    effectsAnimationList.innerHTML = '';
-
     while (effectAnim.options.length > 0) {                
         effectAnim.remove(0);
-    }  
+    }
     animation.forEach((anim, index) => {
-        const li = document.createElement('li');
-        li.classList.add('list-group-item');
-        li.innerHTML = `<input id=animation${index} type="checkbox"/>
-            <label id=animLabel${index}>${anim.name}</label>`;
-        if(index == currentAnim)
-        {
-            li.classList.add('selected-item');
-        }
-        effectsAnimationList.appendChild(li);
-
-        li.addEventListener('click', (event) =>{
-            if (event.target.type === "checkbox") {
-                return;
-            }
-            if(currentAnim != -1)
-                effectsAnimationList.children.item(currentAnim).classList.remove('selected-item');
-            li.classList.add('selected-item');
-            selectAnimation(index);
-        });
-      
-        document.getElementById(`animation${index}`).checked = animation[index].selected;
-        document.getElementById(`animation${index}`).addEventListener('click',()=>{
-            animation[index].selected = document.getElementById(`animation${index}`).checked;
-        });
         effectAnim.options[effectAnim.options.length] = new Option(anim.name, index);
     }); 
 }
@@ -1126,8 +1138,8 @@ function selectAnimation(index){
     currentAnim = index;
     currentFrame = 0;
     toolContext.current_group = -1;
-    updateThumbnails();
     updateGroupList();
+    updateThumbnails();
     drawFrame();
 }
 
@@ -1308,6 +1320,9 @@ function playAnimation() {
         currentFrame++;
     }, interval);
 }
+
+function prevFrame() { if (currentFrame > 0) { --currentFrame; drawFrame(); updateThumbnails();} }
+function nextFrame() { if (currentFrame < animation[currentAnim].frames.length - 1) { ++currentFrame; drawFrame(); updateThumbnails(); }  }
 
 // Add keyboard shortcuts for toolbar buttons
 document.addEventListener('keydown', function(event) {
@@ -1717,57 +1732,7 @@ function audioDrawFrame() {
     });
 }
 
-function updateEffectsThumbnails() {
-    if(currentAnim == -1) return;
-    effectFrameThumbnails.innerHTML = '';
-    animation[currentAnim].frames.forEach((_, index) => {
-        const div = document.createElement('div');
-        div.classList.add("frame-thumbnail");
-        // Create a small canvas for the thumbnail
-        const thumbnailCanvas = document.createElement('canvas');
-        thumbnailCanvas.width = 60;
-        thumbnailCanvas.height = 60;
-        const thumbnailCtx = thumbnailCanvas.getContext('2d');
-        
-        // Draw a scaled-down version of the frame
-        const frame = animation[currentAnim].frames[index];
-        const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
-        const offsetX = (60 - scale*toolContext.canvasWidth)/2;
-        const offsetY = (60 - scale*toolContext.canvasHeight)/2;
 
-
-
-        // Draw LEDs on the thumbnail canvas
-        thumbnailCtx.fillStyle = "white";
-        thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
-        
-        ledStrip.ledPath.forEach((point, ledIndex) => {
-            if (frame.leds[ledIndex] && !ledStrip.isDisabled(ledIndex)) {
-                const color = frame.leds[ledIndex];
-                thumbnailCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                thumbnailCtx.fillRect(
-                    offsetX + point.x * scale, 
-                    offsetY + point.y * scale, 
-                    2, 2
-                );
-            }
-        });
-        
-        // Append the canvas to the div
-        div.appendChild(thumbnailCanvas);
-        if(index == currentFrame)
-            div.classList.add('frame-thumbnail-current');
-        div.draggable = true;
-        div.onclick = () => { 
-            effectFrameThumbnails.children.item(currentFrame).classList.remove('frame-thumbnail-current')
-            currentFrame = index;
-            effectFrameThumbnails.children.item(currentFrame).classList.add('frame-thumbnail-current');
-            drawFrame(); 
-        };
-        div.dataset.frameIndex = index;
-        effectFrameThumbnails.appendChild(div);
-    });
-}
 
 
 function loadEffectsFromFile(event) {
@@ -1791,6 +1756,7 @@ function loadEffectsFromFile(event) {
                 return newAnim;
             });
             selectAnimation(animation.length - 1);
+            selectFrame(0);
             updateAnimationList();
         }
 
@@ -1803,10 +1769,10 @@ function loadEffectsFromFile(event) {
                 
                 if (e.effect.type === 'pulse') {
                     effect = new EffectPulse(targetAnim, e.effect.settings);
-                } else if(e.effect.type === 'anim'){
+                } else if(e.effect.type === 'animation'){
                     effect = new EffectAnim(targetAnim, e.effect.settings);
                 } else if(e.effect.type === 'trigger'){
-                    effect = new EffectTriger(animation[e.effect.AnimationIndex], targetAnim,  e.effect.settings);
+                    effect = new EffectTriger(animation[e.effect.animationIndex], targetAnim,  e.effect.settings);
                 }
 
                 return {effect: effect, selected: false};
@@ -1815,6 +1781,7 @@ function loadEffectsFromFile(event) {
             updateEffectControl(-1);
             updateBandsInSpectrum();
         }
+        drawFrame();
     };
 
     reader.readAsText(file);

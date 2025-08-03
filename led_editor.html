@@ -162,6 +162,16 @@
             margin-left: 5px;
         }
 
+        .list-item-content {
+            font-size: 0.75rem;
+            padding-top: 1px;
+            border-top: 1px solid black;
+            width: 100%;
+        }
+        .list-item-content:last-child{
+            border-bottom: 1px solid black;
+        }
+
         .multiple-input-box {
             border: 1px solid black;
             padding: 3px;
@@ -539,8 +549,7 @@
                             <button type="button" class="btn btn-default" style="width: fit-content;" onclick="toggleEffectsSidebar()">
                                 <span class="fa-solid fa-xmark"></span>
                             </button>
-                            <div id="controls">
-                                <div id="effect-control">
+                            <div id="effect-control">
                                     <div class="box-wrapper gap-2">
                                         <div class="box-label">Effect:</div>
                                 
@@ -588,29 +597,27 @@
                                         
                                         
                                     </div>
-                                </div>
-                                <div class="box-wrapper">
-                                    <div class="box-label">Effect list:</div>
+                            </div>
+                            <div class="box-wrapper d-flex flex-column overflow-auto">
+                                    <span class="box-label">Effect list:</span>
                                     <div class="btn-group">
-                                    <button type="button" class="btn btn-default" onclick="saveEffectsToFile()">
-                                        <span class="fa-solid fa-save"></span>
-                                    </button>
-                                    <label class="btn btn-default" for="load-effects">
-                                        <span class="fa-solid fa-folder-open"></span>
-                                    </label>
-                                    <input onchange="loadEffectsFromFile(event)" type="file" id="load-effects" accept=".json" class="hidden-input"/>    
-                                    <button onclick="deleteEffect()" class="btn btn-default">
-                                        <span class="fa-solid fa-trash"></span>
-                                    </button>
-                                    <button onclick="updateEffect()" class="btn btn-default">
-                                        <span class="fa-solid fa-refresh"></span>
-                                    </button>
+                                        <button type="button" class="btn btn-default" onclick="saveEffectsToFile()">
+                                            <span class="fa-solid fa-save"></span>
+                                        </button>
+                                        <label class="btn btn-default" for="load-effects">
+                                            <span class="fa-solid fa-folder-open"></span>
+                                        </label>
+                                        <input onchange="loadEffectsFromFile(event)" type="file" id="load-effects" accept=".json" class="hidden-input"/>    
+                                        <button onclick="deleteEffect()" class="btn btn-default">
+                                            <span class="fa-solid fa-trash"></span>
+                                        </button>
+                                        <button onclick="updateEffect()" class="btn btn-default">
+                                            <span class="fa-solid fa-refresh"></span>
+                                        </button>
                                     </div>
-                                    <div>
-                                        <div id="effect-list"></div>
-                                    </div>
-                                </div>
-                                </div>
+                                    <ul id="effect-list" class="list-group h-100 overflow-y-auto"> 
+                                    </ul>
+                            </div>
                         </div>
                         <div id="effects-close-sidebar" class="close-sidebar">
                             <button type="button" class="btn btn-default" onclick="toggleEffectsSidebar()">

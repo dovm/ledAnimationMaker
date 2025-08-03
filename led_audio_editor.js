@@ -59,31 +59,23 @@ document.getElementById('effect-type').addEventListener('change', (e) => {
 
 
 const effectTypeIndex = {"EffectPulse": 0, "EffectAnim": 1, "EffectTriger": 2}
+const effectTypeName = {"EffectPulse": "Pulse", "EffectAnim": "Animation", "EffectTriger": "Trigger"}
 
 function updateEffectControl(index)
 {
     if(index!= -1)
     {
-        document.getElementById('effect-type').selectedIndex = effectTypeIndex[effects[0].effect.constructor.name]
+        document.getElementById('effect-type').selectedIndex = effectTypeIndex[effects[index].effect.constructor.name]
         updateEffectTypeControls();
         let effect = effects[index].effect;
-        if(effect instanceof EffectPulse)
+        if(effect instanceof EffectTriger)
         {
-            document.getElementById('effect-type').selectedIndex = 0;
-        }
-        else if(effect instanceof EffectAnim)
-        {
-            document.getElementById('effect-type').selectedIndex = 1;
-        }
-        else if(effect instanceof EffectTriger)
-        {
-            document.getElementById('effect-type').selectedIndex = 2;
             document.getElementById('effect-time-window').value = effect.settings.timeWindow;
             document.getElementById('effect-end-animation').selectedIndex = effect.settings.endAnimationIndex;
             document.getElementById('effect-animation-rate').value = effect.settings.animationRate;
         }
         
-        document.getElementById('effect-anim').selectedIndex = effect.animationIndex;
+        document.getElementById('effect-anim').selectedIndex = animation.indexOf(effect.animation);
         document.getElementById('effect-Hz-min-range').value = effect.settings.HzRange.min; 
         document.getElementById('effect-Hz-max-range').value = effect.settings.HzRange.max;
         document.getElementById('effect-min-range').value = effect.settings.range.min; 
@@ -136,25 +128,30 @@ function updateEffectList(){
     effectList.innerHTML = '';
     
     effects.forEach((e, index) => {
-        const div = document.createElement('div');
-        div.addEventListener('click', (event) => {
+        const li = document.createElement('li');
+        li.classList.add('list-group-item');
+        li.classList.add('d-flex');
+        li.classList.add('ps-2');
+
+        li.innerHTML = `<input id=effect_checkbox${index} type="checkbox"/>
+        <div class="w-100 ms-1 d-flex flex-column">
+            <label class="list-item-label">${effectTypeName[effects[index].effect.constructor.name]}: ${e.effect.animation.name}</label>
+            <label class="list-item-content">Band: ${e.effect.settings.HzRange.min}-${e.effect.settings.HzRange.max} Hz</label>
+            <label class="list-item-content">Level: ${e.effect.settings.range.min}-${e.effect.settings.range.max}</label>
+        </div>`;
+        li.addEventListener('click', (event) => {
             if(event.target.type === "checkbox")
             {
                 return;
             }
             selectEffect(index);
         });
-        div.classList.add('effect-item');
-        div.innerHTML = `<input id=effect_checkbox${index} type="checkbox"/>
-            <label class="list-item-label">${e.effect.animation.name}: ${e.effect.settings.HzRange.min}-${e.effect.settings.HzRange.max} Hz, `
-        
-        div.innerHTML += `level: ${e.effect.settings.range.min}-${e.effect.settings.range.max}</label>`;
-
+        //div.classList.add('effect-item');
         if(index == currentEffect)
         {
-            div.classList.add('selected-item');
+            li.classList.add('selected-item');
         }
-        effectList.appendChild(div);
+        effectList.appendChild(li);
         document.getElementById(`effect_checkbox${index}`).checked = e.selected;
         document.getElementById(`effect_checkbox${index}`).addEventListener('click', () =>{
             e.selected = document.getElementById(`effect_checkbox${index}`).checked;
@@ -194,51 +191,6 @@ function saveEffectsToFile() {
     a.href = URL.createObjectURL(blob);
     a.download = 'led_effects.json';
     a.click();
-}
-
-function loadEffectsFromFile(event) {
-    const file = event.target.files[0];
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        const data = JSON.parse(e.target.result);
-        
-        loadLedsFromJson(data.ledStrip)
-        // Load LED strip
-        
-        // Load animations
-        animation = data.animations.map(anim => {
-            const newAnim = new Animation();
-            newAnim.name = anim.name;
-            newAnim.frames = anim.frames;
-            newAnim.groups = anim.groups;
-            return newAnim;
-        });
-
-        // Load effects
-        effects = data.effects.map(e => {
-            const targetAnim = animation[e.effect.animationIndex];
-            let effect;
-            
-            if (e.effect.type === 'pulse') {
-                effect = new EffectPulse(targetAnim, e.effect.settings);
-            } else if(e.effect.type === 'anim'){
-                effect = new EffectAnim(targetAnim, e.effect.settings);
-            } else if(e.effect.type === 'trigger'){
-                effect = new EffectTriger(targetAnim, animation[e.effect.settings.endAnimationIndex] ,  e.effect.settings);
-            }
-            
-            return {effect: effect, selected: false};
-        });
-
-        // Update UI
-        updateAnimationList();
-        updateEffectList();
-        updateEffectControl(-1);
-        updateBandsInSpectrum();
-    };
-
-    reader.readAsText(file);
 }
 
 

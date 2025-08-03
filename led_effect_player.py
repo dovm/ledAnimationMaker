@@ -141,7 +141,7 @@ def process_audio():
                     frame_index = -1
             elif(effect['effect']['type'] == 'trigger'):
                 animation = effects["animations"][effect['effect']['animationIndex']]
-                end_animation = effects["animations"][effect['effect']['endAnimationIndex']]
+                end_animation = effects["animations"][effect['effect']['settings']['endAnimationIndex']]
                 # Calculate power over time using moving average
                 if not effect.__contains__('last_powers_array'):
                     # Initialize array to store power values over time window
