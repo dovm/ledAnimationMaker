@@ -256,6 +256,73 @@
             flex-direction: row;
             flex-shrink: 0;
         }
+
+        .effect-block{
+            border: 1px solid black; 
+            background: #8f8c8c;
+            border-radius: 5px;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            width: 0px;
+            height: 0px;
+            align-items: center
+        }
+
+
+        .effect-block-type-label{
+            width:fit-content;
+            height: 18px;
+            position: absolute;
+            border: 1px solid black;
+            border-bottom: 0px;
+            background-color: darkgray;
+            font-size: 0.75rem;
+            top: -18px;
+            
+        }
+
+        .effect-block-input-label{
+            width: 18px;
+            height: 18px;
+            position: absolute;
+            border: 1px solid black;
+            border-right: 0px;
+            background-color: darkgray;
+            font-size: 0.75rem;
+            left: -18px;
+            text-align: center;
+        }
+
+        .effect-block-Outout-label{
+            width: 18px;
+            height: 18px;
+            position: absolute;
+            border: 1px solid black;
+            border-left: 0px;
+            background-color: darkgray;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
+        .effect-block-label {
+            text-align: center;
+        }
+
+        .effect-block-content {
+            font-size: 0.75rem;
+            padding-top: 1px;
+            margin-left: 5px;
+            width: 100%;
+        }
+        .selected-effect-block{
+            background: aquamarine;
+        }
+
+        .selected-inout{
+            background:burlywood;
+        }
+
     </style>
 </head>
 
@@ -269,6 +336,10 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="animation-tab" data-bs-toggle="tab" data-bs-target="#animation"
                     type="button" role="tab">Animation</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="blocks-tab" data-bs-toggle="tab" data-bs-target="#blocks" type="button"
+                    role="tab">Blocks</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="effects-tab" data-bs-toggle="tab" data-bs-target="#effects" type="button"
@@ -384,7 +455,7 @@
                     <div style="min-height: 120px;"></div>
                 </div>
             </div>
-            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="animation" role="tabpanel">
+            <div class="h-100 tab-pane fade border border-top-0 rounded-bottom" id="animation" role="tabpanel">
                 <div class="h-100 d-flex flex-column tab_container">
                     <div class="h-100 overflow-auto d-flex ">
                         <div id="animation-sidebar" class="sidebar d-flex flex-column">
@@ -542,7 +613,122 @@
                     </div>
                 </div>
             </div>
-            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="effects" role="tabpanel">
+            <div class="h-100 tab-pane fade border border-top-0 rounded-bottom" id="blocks" role="tabpanel">
+                <div class="h-100 d-flex flex-column tab_container">
+                    <div class="h-100 overflow-auto d-flex ">
+                        <div id="Blocks-sidebar" class="sidebar d-flex flex-column">
+                            <button type="button" class="btn btn-default" style="width: fit-content;" onclick="toggleBlocksSidebar()">
+                                <span class="fa-solid fa-xmark"></span>
+                            </button>
+                            <div id="effect-control">
+                                    <div class="box-wrapper gap-2">
+                                        <div class="box-label">Block:</div>
+                                        <div class="input-group d-flex gap-2 align-items-center">
+                                            <span class="input-group-addon">Name:</span>
+                                            <input class="form-control" style="width: 50px;" type="text" id="effect-name">
+                                        </div>
+                                        <div class="pulse-control trigger-control d-flex flex-column gap-2">
+                                            <span>Frequency Range:</span>
+                                            <div class="input-group d-flex gap-2 align-items-center">
+                                                <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-min-range">
+                                                <span class="input-group-addon">to</span>
+                                                <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-max-range">
+                                            </div>
+                                        </div>
+                                    
+                                        <div class="pulse-control trigger-control d-flex flex-column gap-2">
+                                            <span>Level Range:</span>
+                                            <div class="input-group d-flex gap-2 align-items-center">
+                                                <input class="form-control" style="width: 50px;" type="number" id="effect-min-range">
+                                                <span class="input-group-addon">to</span>
+                                                <input class="form-control" style="width: 50px;" type="number" id="effect-max-range">
+                                            </div>
+                                        </div>
+                                        <div class="trigger-control d-none gap-2 align-items-center">
+                                            <span>loading animation</span>
+                                            <select class="select-input form-select w-auto" id="effect-end-animation"></select>
+                                        </div>
+                                        <div class="trigger-control d-none gap-2 align-items-center">
+                                            <span>time window</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-time-window">
+                                        </div>
+                                        <div class="trigger-control anim-control d-none gap-2 align-items-center">
+                                            <span>frame rate</span>
+                                            <input class="form-control" style="width: 50px;" type="number" id="effect-animation-rate">
+                                        </div>
+                                        <div class="input-group mt-2">
+                                            <select class="select-input form-select w-auto" id="effect-type">
+                                                <option>Pulse</option>
+                                                <option>Animation</option>
+                                                <option>Trigger</option>
+                                                <option>Beat</option>
+                                            </select>
+                                            <select class="select-input form-select w-auto" id="block-anim"></select>
+                                            <button onclick="addBlock()" class="btn btn-default">
+                                                <span class="fa-solid fa-plus"></span>
+                                            </button>
+                                        </div>  
+                                        
+                                        
+                                        
+                                    </div>
+                            </div>
+                            <div class="box-wrapper d-flex flex-column overflow-auto">
+                                    <span class="box-label">Block list:</span>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-default" onclick="savelocksToFile()">
+                                            <span class="fa-solid fa-save"></span>
+                                        </button>
+                                        <label class="btn btn-default" for="load-effects">
+                                            <span class="fa-solid fa-folder-open"></span>
+                                        </label>
+                                        <input onchange="loadBlocksFromFile(event)" type="file" id="load-effects" accept=".json" class="hidden-input"/>    
+                                        <button onclick="deleteBlock()" class="btn btn-default">
+                                            <span class="fa-solid fa-trash"></span>
+                                        </button>
+                                        <button onclick="updateBlock()" class="btn btn-default">
+                                            <span class="fa-solid fa-refresh"></span>
+                                        </button>
+                                    </div>
+                                    <ul id="block-list" class="list-group h-100 overflow-y-auto"> 
+                                    </ul>
+                            </div>
+                        </div>
+                        <div id="blocks-close-sidebar" class="close-sidebar">
+                            <button type="button" class="btn btn-default" onclick="toggleBlocksSidebar()">
+                                <span class="fa-solid fa-angle-right"></span>
+                            </button>
+                        </div>
+                        <div class="overflow-auto d-flex flex-column flex-grow-1 pt-1">
+                            <div id="block-view" class="h-100 canvas-container position-relative">  
+                            </div>
+                        </div>
+                    </div>
+                    <div id="timeline-toolbar">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-default" onclick="prevFrame()">
+                                    <span class="fa-solid fa-chevron-left"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="nextFrame()">
+                                    <span class="fa-solid fa-chevron-right"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="playAnimation()">
+                                    <span class="fa-solid fa-play"></span>
+                                </button>
+                                <button type="button" class="btn btn-default" onclick="exportAnimation()">
+                                    <span class="fa-solid fa-file-export"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="timeline">
+                            <div id="blocks-frame-thumbnails" class="timeline-wrapper">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="h-100 tab-pane fade border border-top-0 rounded-bottom" id="effects" role="tabpanel">
                 <div class="h-100 d-flex flex-column tab_container">
                     <div class="h-100 overflow-auto d-flex ">
                         <div id="effects-sidebar" class="sidebar d-flex flex-column">
@@ -723,6 +909,7 @@
         <script src="audio_spectrum.js"></script>
         <script src="led_editor.js"></script>
         <script src="led_audio_editor.js"></script>
+        <script src="blockView.js"></script>
 
 </body>
 

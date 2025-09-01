@@ -17,7 +17,7 @@ function resetEffectControls() {
     document.getElementById('effect-min-range').value = "";
     document.getElementById('effect-max-range').value = "";
     
-    // Reset frequency range inputs
+    // Reset fre    ncy range inputs
     document.getElementById('effect-Hz-min-range').value = "";
     document.getElementById('effect-Hz-max-range').value = "";
     
@@ -28,16 +28,18 @@ function updateEffectTypeControls() {
     const pulseControls = document.querySelectorAll('.pulse-control');
     const animControls = document.querySelectorAll('.anim-control');
     const triggerControls = document.querySelectorAll('.trigger-control');
+    const beatControls = document.querySelectorAll('.beat-control');
     
     if (effectType === "Pulse") { // Pulse effect
-        pulseControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        
         animControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
         triggerControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        pulseControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
         
     } else if (effectType === "Animation") { // Animation effect
         pulseControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");}); 
-        animControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
         triggerControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        animControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
     }
     else if (effectType === "Trigger") { // Trigger effect
         pulseControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");}); 
@@ -47,8 +49,14 @@ function updateEffectTypeControls() {
         while (loadAnimList.options.length > 0) {                
             loadAnimList.remove(0);
         }  
-        animation.forEach((anim, index) => loadAnimList.options[loadAnimList.options.length] = new Option(anim.name, index));
-            
+        animation.forEach((anim, index) => loadAnimList.options[loadAnimList.options.length] = new Option(anim.name, index));       
+    }
+    else if(effectType == "Beat")
+    {
+        pulseControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");}); 
+        animControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        triggerControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        beatControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
     }
 }
 
