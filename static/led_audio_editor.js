@@ -47,7 +47,7 @@ function updateEffectTypeControls() {
         while (loadAnimList.options.length > 0) {                
             loadAnimList.remove(0);
         }  
-        animation.forEach((anim, index) => loadAnimList.options[loadAnimList.options.length] = new Option(anim.name, index));
+        animationCtx.getAnimations().forEach((anim, index) => loadAnimList.options[loadAnimList.options.length] = new Option(anim.name, index));
             
     }
 }
@@ -75,7 +75,7 @@ function updateEffectControl(index)
             document.getElementById('effect-animation-rate').value = effect.settings.animationRate;
         }
         
-        document.getElementById('effect-anim').selectedIndex = animation.indexOf(effect.animation);
+        document.getElementById('effect-anim').selectedIndex = animationCtx.getAnimations().indexOf(effect.animation);
         document.getElementById('effect-Hz-min-range').value = effect.settings.HzRange.min; 
         document.getElementById('effect-Hz-max-range').value = effect.settings.HzRange.max;
         document.getElementById('effect-min-range').value = effect.settings.range.min; 
@@ -94,14 +94,14 @@ function addEffect(){
     let range = { min: parseInt(document.getElementById('effect-min-range').value),
                         max: parseInt(document.getElementById('effect-max-range').value) };
     if(effect_type == 0)
-        effects.push({ effect: new EffectPulse(animation[animIndex], {HzRange: HzRange, range: range}), selected: true});
+        effects.push({ effect: new EffectPulse(animationCtx.getAnimation(animIndex), {HzRange: HzRange, range: range}), selected: true});
     else if(effect_type == 1)
-        effects.push({ effect: new EffectAnim(animation[animIndex], {HzRange: HzRange, range: range}), selected: true});
+        effects.push({ effect: new EffectAnim(animationCtx.getAnimation(animIndex), {HzRange: HzRange, range: range}), selected: true});
     else if(effect_type == 2){
         let timeWindow = document.getElementById('effect-time-window').value;
         let endAnimationIndex = document.getElementById('effect-end-animation').selectedIndex;
         let animationRate = document.getElementById('effect-animation-rate').value;
-        effects.push({ effect: new EffectTriger(animation[animIndex], animation[endAnimationIndex], 
+        effects.push({ effect: new EffectTriger(animationCtx.getAnimation(animIndex), animationCtx.getAnimation(endAnimationIndex), 
             {HzRange: HzRange, range: range, timeWindow, animationRate, endAnimationIndex}), selected: true});
     }
     updateEffectList();
@@ -169,7 +169,7 @@ function saveEffectsToFile() {
     // Create object to hold all data
     const saveData = {
         ledStrip: ledStrip,
-        animations: animation.map(anim => ({
+        animations: animationCtx.getAnimations().map(anim => ({
             name: anim.name,
             frames: anim.frames,
             groups: anim.groups,
@@ -179,7 +179,7 @@ function saveEffectsToFile() {
             effect: {
                 type: e.effect instanceof EffectPulse ? 'pulse' : e.effect instanceof EffectAnim ? 'animation' : 'trigger',
                 settings: e.effect.settings,
-                animationIndex: animation.indexOf(e.effect.animation)
+                animationIndex: animationCtx.getAnimations().indexOf(e.effect.animation)
             },
             selected: false // Don't save selection state
         }))

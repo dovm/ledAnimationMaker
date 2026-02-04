@@ -9,284 +9,68 @@
     <link href="fa.min.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body {
-            display: flex;
-            overflow: hidden;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .tab_container {
-            background-color: #f0f0f0;
-            transition: margin-left 0.3s;
-            
-        }
-
-        .right-sidebar{
-            margin-left: 5px;
-            padding: 5px;
-            border-left: 1px solid black;
-            flex-shrink: 0;
-        }
-
-        .sidebar {
-            width: 250px;
-            padding: 5px;
-            border-right: 1px solid black;
-            transition: all 0.3s;
-            flex-shrink: 0;
-        }
-
-        .sidebar.collapsed {
-            padding: 0px;
-            width: 0;
-            overflow: hidden;
-            border-right: 0px solid black;
-        }
-
-        .close-sidebar {
-            width: 0px;
-            overflow: hidden;
-            
-        }
-
-        .close-sidebar.collapsed {
-            width: fit-content;
-            padding: 5px;
-            border-right: 1px solid black;
-            transition: all 0.3s;
-            flex-shrink: 0;
-        }
-
-        .toolbar {
-            align-items: center;
-            gap: 10px;
-            margin-left: 5px;
-            background-color: #f0f0f0;
-        }
-
-        #toolbar label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        input[type=number]::-webkit-outer-spin-button,
-        input[type=number]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
-
-        .canvas-container {
-            border: 1px solid black;
-            display: block;
-            margin-left: 5px;
-            justify-content: left;
-            align-items: center;
-            flex-grow: 1;
-            overflow: auto;
-            box-sizing: border-box;
-        }
-
-        #timeline-toolbar {
-            background-color: #f0f0f0;
-            border-bottom: 1px solid black;
-            display: block;
-            align-items: center;
-            padding: 10px;
-            min-height: 120px;
-        }
-
-        .effect-control {
-            margin: 5px 0;
-        }
-
-        .timeline {
-            position: relative;
-            padding-left: 50px;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        .frame-thumbnail {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            /* only a small part shown */
-            height: 60px;
-            margin-left: -50px;
-            /* overlap */
-            background-color: #ddd;
-            overflow: hidden;
-            vertical-align: top;
-            border-bottom-left-radius: 5px;
-            border-top-left-radius: 5px;
-            border: 2px solid black;
-            z-index: 1;
-        }
-
-        .frame-thumbnail:hover {
-            margin-right: 48px;
-        }
-
-        .frame-thumbnail:hover canvas {
-            transform: translateX(0);
-            z-index: 10;
-        }
-
-        .timeline-wrapper {
-            display: flex;
-            gap: 0;
-        }
-
-        .frame-thumbnail-current {
-            border: 2px solid red;
-            padding: 0px;
-        }
-
-        #led-group-list {
-            overflow-y: auto;
-        }
-
-        .selected-item {
-            background-color: aquamarine;
-        }
-
-        .list-item-label {
-            align-content: center;
-            margin-left: 5px;
-        }
-
-        .list-item-content {
-            font-size: 0.75rem;
-            padding-top: 1px;
-            border-top: 1px solid black;
-            width: 100%;
-        }
-        .list-item-content:last-child{
-            border-bottom: 1px solid black;
-        }
-
-        .multiple-input-box {
-            border: 1px solid black;
-            padding: 3px;
-        }
-
-        .select-input {
-            margin: 2px;
-            width: 100px;
-        }
-
-        .box-wrapper {
-            position: relative;
-            margin-top: 1rem;
-            padding: 12px;
-            padding-top: 16px;
-            outline: 1px solid #444;
-            outline-offset: -0.4em;
-            font-weight: bold;
-            color: #444;
-        }
-
-        .box-label {
-            position: absolute;
-            top: -0.4em;
-            left: 1rem;
-            background: #f0f0f0;
-            padding: 0 0.5em;
-            font-weight: bold;
-            color: #444;
-        }
-
-        .button-icon-with-text {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .hidden-input {
-            display: none;
-        }
-
-        .icon-img {
-            width: 24px;
-            height: 24px;
-            margin: 1px;
-        }
-
-        .pressed-icon {
-            display: none;
-        }
-
-        /* Show pressed icon on click/press */
-        .icon-label:active .default-icon {
-            display: none;
-        }
-
-        .icon-label:active .pressed-icon {
-            display: inline;
-        }
-
-        .canvas-default-size {
-            display: block;
-            
-        }
-
-        .select-box{
-            width: 0px;
-            height: 0px;
-            position: relative;
-            background: #53525229;
-            left: 0px;
-            top: 0px;
-            border: 1px solid black; 
-            pointer-events: none
-        }
-        
-        .status-line{
-            min-height: 20px;
-            justify-content: end;
-            gap: 5px;
-            display: flex;
-            flex-direction: row;
-            flex-shrink: 0;
-        }
-    </style>
+    <link rel="stylesheet" href="led_editor.css">
 </head>
 
 <body>
     <div class="container-fluid h-100 d-flex flex-column">
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="layout-tab" data-bs-toggle="tab" data-bs-target="#layout"
-                    type="button" role="tab">Layout</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="animation-tab" data-bs-toggle="tab" data-bs-target="#animation"
-                    type="button" role="tab">Animation</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="effects-tab" data-bs-toggle="tab" data-bs-target="#effects" type="button"
-                    role="tab">Effects</button>
-            </li>
-        </ul>
-
-        <div class="h-100 bg-light tab-content flex-grow-1 overflow-hidden" id="myTabContent">
-            <div class="h-100 tab-pane fade show active border border-top-0 rounded-bottom" id="layout" role="tabpanel">
-                <div class="h-100 d-flex flex-column tab_container">
-                    
-                    <div class="h-100 overflow-auto d-flex ">
-                        <div id="layout-sidebar" class="sidebar d-flex flex-column">
-                            <button type="button" class="btn btn-default" style="width: fit-content" onclick="toggleLayoutSidebar()">
-                                <span class="fa-solid fa-xmark"></span>
-                            </button>
-                            <div class="box-wrapper">
-                                <span class="box-label">File Operations</span>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand" href="#">LED Editor</a>
+            <div class="dropdown">
+                <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                   Tab
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown" id="myTab" role="tablist">
+                  <div class="dropdown-item tab-header active" id="layout-tab" data-bs-toggle="tab" data-bs-target="#layout" type="button"
+                  role="tab"><span class="fa-solid fa-shapes"></span> Layout</div>
+                  <div class="dropdown-item tab-header" id="animation-tab" data-bs-toggle="tab" data-bs-target="#animation" type="button"
+                  role="tab"><span class="fa-solid fa-brush"></span> Animation</div>
+                  <div class="dropdown-item tab-header" id="effects-tab" data-bs-toggle="tab" data-bs-target="#effects" type="button"
+                  role="tab"><span class="fa-solid fa-sliders"></span> Effects</div>
+                </div>
+              </div>
+            
+          
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <div class="file-menu-content" data-tab="layout-tab">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item dropdown active">
+                            <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                File Menu
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
+                                <div class="dropdown-item">
+                                    <input type="file" class="custom-file-input hidden-input" onchange="loadLedsConfig(event)" id="load-layout" accept=".json">
+                                    </input>
+                                    <label class="custom-file-label" for="load-layout">
+                                        <span class="fa-solid fa-file-import"></span>  Load layout
+                                    </label>
+                                </div>
+                                <div class="dropdown-item"  onclick="saveLedsConfig()">
+                                    <label>
+                                    <span class="fa-solid fa-save"></span>  save layout
+                                    </label>
+                                </div>
+                                <span class="dropdown-divider"></span>
+                                <div class="dropdown-item" id="layout-file-name"></div>
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" role="button" data-bs-toggle="modal" data-bs-target="#led-layout-dimentions-modal">
+                                Layout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                
+                <div class="file-menu-content" data-tab="animation-tab">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item active">
+                            <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                File Menu
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
                                 <div class="input-group">
                                     <input type="file" class="form-control" onchange="loadLedsConfig(event)">
                                     </input>
@@ -295,34 +79,44 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="box-wrapper">
-                            <span class="box-label">LED Strip Settings</span>
-                            <span class="form-label">Layout size:</span>
-                            <div class="input-group d-flex align-items-center">
-                                <input type="number" id="canvasWidth" onchange="canvasDImChange()" class="form-control"
-                                    min="1" max="5000" value="500">
-                                <span class="input-group-addon">X</span>
-                                <input type="number" id="canvasHeight" onchange="canvasDImChange()" class="form-control"
-                                    min="1" max="5000" value="500">
-                            </div>
-                            <span>Add LEDs:</span>
-                            <div class="input-group">
-                                <input type="number" id="ledCount" placeholder="Number of LEDS...   " class="form-control" min="1" max="100">
-                                <span class="input-group-btn">
-                                    <button type="button" class="btn btn-default" onclick="addLedStrip()">
-                                        <span class="fa-solid fa-plus"></span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" role="button" data-bs-toggle="modal" data-bs-target="#group-animation-modal">
+                                Group Animation
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="file-menu-content" data-tab="effects-tab">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item active">
+                            <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                File Menu
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
+                                <div class="input-group">
+                                    <input type="file" class="form-control" onchange="loadLedsConfig(event)">
+                                    </input>
+                                    <button type="button" class="btn btn-default" onclick="saveLedsConfig()">
+                                        <span class="fa-solid fa-save"></span>
                                     </button>
-                                </span>
-                              </div>
-                            
-                            
+                                </div>
                             </div>
-                        </div>
-                        <div id="layout-close-sidebar" class="close-sidebar">
-                            <button type="button" class="btn btn-default" onclick="toggleLayoutSidebar()">
-                                <span class="fa-solid fa-angle-right"></span>
-                            </button>
-                        </div>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" role="button" data-bs-toggle="modal" data-bs-target="#add-effect-modal">
+                                Add Effect
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+          </nav>
+        
+        <div class="h-100 bg-light tab-content flex-grow-1 overflow-hidden" id="myTabContent">
+            <div class="h-100 tab-pane fade show active border border-top-0 rounded-bottom" id="layout" role="tabpanel">
+                <div class="h-100 d-flex flex-column tab_container"> 
+                    <div class="h-100 overflow-auto d-flex ">
                         <div class="overflow-auto d-flex flex-grow-1 pt-1">
                             <div class="toolbar">
                             <div class="btn-toolbar" role="toolbar">
@@ -379,12 +173,10 @@
                                 </div>
                             </div>
                         </div>
-                        
                     </div>
-                    <div style="min-height: 120px;"></div>
                 </div>
             </div>
-            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="animation" role="tabpanel">
+            <div class="h-100 tab-pane fade border border-top-0 rounded-bottom" id="animation" role="tabpanel">
                 <div class="h-100 d-flex flex-column tab_container">
                     <div class="h-100 overflow-auto d-flex ">
                         <div id="animation-sidebar" class="sidebar d-flex flex-column">
@@ -414,6 +206,19 @@
                                     <input class="form-control" type="text" id="animName" placeholder="Animation name...">
                                 </div>
                                 <ul id="animation-list" class="list-group overflow-y-auto">
+                                </ul>
+                            </div>
+                            <div class="box-wrapper h-100 overflow-auto d-flex flex-column">
+                                <span class="box-label">LED Groups</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-default" onclick="addGroup()">
+                                        <span class="fa-solid fa-object-group"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-default" onclick="clearGroups()">
+                                        <span class="fa-solid fa-trash"></span>
+                                    </button>
+                                </div>
+                                <ul id="led-group-list" class="list-group ">
                                 </ul>
                             </div>
                         </div>
@@ -464,50 +269,6 @@
                             </div>
 
                         </div>
-                        <div id="right-side-bar" class="right-sidebar d-flex flex-column">
-                            <div class="box-wrapper">
-                                <span class="box-label">Group Animation</span>
-                                <div class="effect-control">
-                                    <input type="number" class="form-control" placeholder="number of frames" id="framesCount" min="1" max="60">
-                                </div>
-                                <span>Color range:</span>
-                                <div class="effect-control input-group">
-                                    <input class="form-control form-control-color" type="color" id="startColor" value="#ff0000">
-                                    <input class="form-control form-control-color" type="color" id="endColor" value="#0000ff">
-                                </div>
-                                <div class="effect-control input-group">
-                                    <input class="" type="checkbox" id="apply-on-groups">
-                                    <span>Groups</span>
-                                </div>
-                                <div class="d-flex align-items-center" role="group">
-                                    <span for="options" class="form-label mb-0">Effect:</span>
-                                        <select id="colorScheme" class="select-input form-select w-auto">
-                                            <option value="rainbow">Rainbow</option>
-                                            <option value="fade">Fade</option>
-                                            <option value="random">Random</option>
-                                        </select>
-                                    <button type="button" class="btn btn-default" onclick="createAnimationOnGroup()">
-                                        <span class="fa-solid fa-play"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="box-wrapper h-100 overflow-auto d-flex flex-column">
-                                <span class="box-label">LED Groups</span>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-default" onclick="addGroup()">
-                                        <span class="fa-solid fa-object-group"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="clearGroups()">
-                                        <span class="fa-solid fa-trash"></span>
-                                    </button>
-                                </div>
-                                <ul id="led-group-list" class="list-group ">
-                                </ul>
-        
-                            </div>
-                            
-                            
-                        </div>
                     </div>
                     <div id="timeline-toolbar">
                         <div class="btn-toolbar" role="toolbar">
@@ -542,61 +303,51 @@
                     </div>
                 </div>
             </div>
-            <div class="h-100 tab-pane fade  border border-top-0 rounded-bottom" id="effects" role="tabpanel">
+            <div class="h-100 tab-pane fade border border-top-0 rounded-bottom" id="effects" role="tabpanel">
                 <div class="h-100 d-flex flex-column tab_container">
                     <div class="h-100 overflow-auto d-flex ">
                         <div id="effects-sidebar" class="sidebar d-flex flex-column">
                             <button type="button" class="btn btn-default" style="width: fit-content;" onclick="toggleEffectsSidebar()">
                                 <span class="fa-solid fa-xmark"></span>
                             </button>
-                            <div id="effect-control">
-                                    <div class="box-wrapper gap-2">
-                                        <div class="box-label">Effect:</div>
-                                
-                                        <span>Frequency Range:</span>
-                                        <div class="input-group d-flex gap-2 align-items-center">
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-min-range">
-                                            <span class="input-group-addon">to</span>
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-max-range">
-                                        </div>
-                                        
-                                        <span>Level Range:</span>
-                                        <div class="input-group d-flex gap-2 align-items-center">
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-min-range">
-                                            <span class="input-group-addon">to</span>
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-max-range">
-                                        </div>
-                                        <div class="trigger-control d-none gap-2 align-items-center">
-                                            <span>loading animation</span>
-                                            <select class="select-input form-select w-auto" id="effect-end-animation"></select>
-                                        </div>
-                                        <div class="trigger-control d-none gap-2 align-items-center">
-                                            <span>time window</span>
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-time-window">
-                                        </div>
-                                        <div class="trigger-control d-none gap-2 align-items-center">
-                                            <span>frame rate</span>
-                                            <input class="form-control" style="width: 50px;" type="number" id="effect-animation-rate">
-                                        </div>
-                                        <div class="anim-control d-none gap-2 align-items-center">
-                                            <span>Threshold:</span>
-                                            <input class="form-control" type="number" id="effect-threshold">
-                                        </div>
-                                        <div class="input-group mt-2">
-                                            <select class="select-input form-select w-auto" id="effect-type">
-                                                <option>Pulse</option>
-                                                <option>Animation</option>
-                                                <option>Trigger</option>
-                                            </select>
-                                            <select class="select-input form-select w-auto" id="effect-anim"></select>
-                                            <button onclick="addEffect()" class="btn btn-default">
-                                                <span class="fa-solid fa-plus"></span>
-                                            </button>
-                                        </div>  
-                                        
-                                        
-                                        
+                            <div class="box-wrapper">
+                                <span class="box-label">Audio Controls</span>
+                                <div>
+                                    <div class="form-check">
+                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="microphone-input">
+                                    <label class="form-check-label" for="microphone-input">
+                                      Microphone
+                                    </label>
+                                  </div>
+                                  <div class="form-check">
+                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="audio-file-input" checked>
+                                    <label class="form-check-label" for="audio-file-input">
+                                      Audio File
+                                    </label>
+                                  </div>
+                                </div>
+                                <div class="d-flex flex-column audio-file-controls">
+                                <div class="btn-toolbar">
+                                    <div class="btn-group">
+                                        <label class="btn btn-default" for="audioFile">
+                                            <span class="fa-solid fa-folder-open"></span>
+                                        </label>
+                                        <input onchange="updateAudioFileName(event)" title="load audio file" type="file" id="audioFile" accept="audio/*" class="hidden-input"/>
+                                        <label id="audio-file-name" style="overflow: hidden; max-width: 160px; white-space: nowrap;">File Not Selected</label>
                                     </div>
+                                </div>
+                                <audio style="width: 200px;" id="audioElement" controls></audio>
+                                </div>
+                                <div class="d-none mic-controls">
+                                    <div class="btn-group">
+                                        <button onclick="start_mic()" class="btn btn-default">
+                                            <span class="fa-solid fa-play"></span>
+                                        </button>
+                                        <button onclick="stop_mic()" class="btn btn-default">
+                                            <span class="fa-solid fa-pause"></span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="box-wrapper d-flex flex-column overflow-auto">
                                     <span class="box-label">Effect list:</span>
@@ -636,89 +387,161 @@
                                 <canvas id="spectrum-canvas"></canvas>
                             </div>
                         </div>
-                        <div id="audio-toolbar" class="right-sidebar d-flex flex-column">
-                            <div class="box-wrapper">
-                                <span class="box-label">Audio Controls</span>
-                                <div>
-                                    <div class="form-check">
-                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="microphone-input">
-                                    <label class="form-check-label" for="microphone-input">
-                                      Microphone
-                                    </label>
-                                  </div>
-                                  <div class="form-check">
-                                    <input class="form-check-input" onclick="changeAudioControlsVisibilty()" type="radio" name="audio-input" id="audio-file-input" checked>
-                                    <label class="form-check-label" for="audio-file-input">
-                                      Audio File
-                                    </label>
-                                  </div>
-                                </div>
-                                <div class="d-flex flex-column audio-file-controls">
-                                <div class="btn-toolbar">
-                                    <div class="btn-group">
-                                        <label class="btn btn-default" for="audioFile">
-                                            <span class="fa-solid fa-folder-open"></span>
-                                        </label>
-                                        <input onchange="updateAudioFileName(event)" title="load audio file" type="file" id="audioFile" accept="audio/*" class="hidden-input"/>
-                                        <label id="audio-file-name" style="overflow: hidden; max-width: 160px; white-space: nowrap;">File Not Selected</label>
-                                    </div>
-                                </div>
-                                <audio style="width: 200px;" id="audioElement" controls></audio>
-                                </div>
-                                <div class="d-none mic-controls">
-                                    <div class="btn-group">
-                                        <button onclick="start_mic()" class="btn btn-default">
-                                            <span class="fa-solid fa-play"></span>
-                                        </button>
-                                        <button onclick="stop_mic()" class="btn btn-default">
-                                            <span class="fa-solid fa-pause"></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>  
-                            <div class="h-100 box-wrapper overflow-auto d-flex flex-column">
-                                <span class="box-label">Animation list</span>
-                                <ul id="effects-animation-list" class="list-group overflow-y-auto">
-                                </ul>   
-                            </div>
-                        </div>
-                    </div>
-                    <div id="timeline-toolbar">
-                        <div class="btn-toolbar" role="toolbar">
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-default" onclick="prevFrame()">
-                                    <span class="fa-solid fa-chevron-left"></span>
-                                </button>
-                                <button type="button" class="btn btn-default" onclick="nextFrame()">
-                                    <span class="fa-solid fa-chevron-right"></span>
-                                </button>
-                                <button type="button" class="btn btn-default" onclick="playAnimation()">
-                                    <span class="fa-solid fa-play"></span>
-                                </button>
-                                <button type="button" class="btn btn-default" onclick="exportAnimation()">
-                                    <span class="fa-solid fa-file-export"></span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="timeline">
-                            <div id="effect-frame-thumbnails" class="timeline-wrapper">
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
+          <!-- Modal -->
+          <div class="modal fade" id="led-layout-dimentions-modal" tabindex="-1" role="dialog" aria-labelledby="led-layout-dimentions-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="led-layout-dimentions-modal-title">Led layout dimentions</h5>
+                </div>
+                <div class="modal-body">
+                    <span class="form-label">Layout size:</span>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Width:</span>
+                        </div>
+                        <input type="number" id="areaWidth" onchange="canvasDImChange()" class="form-control"
+                            min="0.1" value="2">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">m</span>
+                            </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Height:</span>
+                        </div>
+                        <input type="number" id="areaHeight" onchange="canvasDImChange()" class="form-control"
+                            min="0.1"  value="2">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">m</span>
+                            </div>
+                    </div>
 
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">pixels per meter:</span>
+                        </div>
+                        <input type="number" id="pixelsPerMeter" class="form-control"
+                            min="1" max="1000" value="100">
+                    </div>
+                    
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">led per meter:</span>
+                        </div>
+                        <input type="number" id="ledsPerMeter" class="form-control"
+                            min="1" max="120" value="60">
+                    </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div class="modal fade" id="group-animation-modal" tabindex="-1" role="dialog" aria-labelledby="group-animation-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="group-animation-modal-title">Group animation</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="effect-control">
+                        <input type="number" class="form-control" placeholder="number of frames" id="framesCount" min="1" max="60">
+                    </div>
+                    <span>Color range:</span>
+                    <div class="effect-control input-group">
+                        <input class="form-control form-control-color" type="color" id="startColor" value="#ff0000">
+                        <input class="form-control form-control-color" type="color" id="endColor" value="#0000ff">
+                    </div>
+                    <div class="effect-control input-group">
+                        <input class="" type="checkbox" id="apply-on-groups">
+                        <span> Groups</span>
+                    </div>
+                    <div class="d-flex align-items-center" role="group">
+                        <span for="options" class="form-label mb-0">Effect:</span>
+                            <select id="colorScheme" class="select-input form-select w-auto">
+                                <option value="rainbow">Rainbow</option>
+                                <option value="fade">Fade</option>
+                                <option value="random">Random</option>
+                            </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" onclick="createAnimationOnGroup()">
+                        <span class="fa-solid fa-play"></span> Generate
+                    </button>
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal">
+                        <span class="fa-solid fa-xmark"></span> Cancel
+                    </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-
-
-
-
+          <div class="modal fade" id="add-effect-modal" tabindex="-1" role="dialog" aria-labelledby="add-effect-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="add-effect-modal-title">Add effect</h5>
+                </div>
+                <div class="modal-body">
+                    <span>Frequency Range:</span>
+                    <div class="input-group d-flex gap-2 align-items-center">
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-min-range">
+                        <span class="input-group-addon">to</span>
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-Hz-max-range">
+                    </div>
+                    
+                    <span>Level Range:</span>
+                    <div class="input-group d-flex gap-2 align-items-center">
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-min-range">
+                        <span class="input-group-addon">to</span>
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-max-range">
+                    </div>
+                    <div class="trigger-control d-none gap-2 align-items-center">
+                        <span>loading animation</span>
+                        <select class="select-input form-select w-auto" id="effect-end-animation"></select>
+                    </div>
+                    <div class="trigger-control d-none gap-2 align-items-center">
+                        <span>time window</span>
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-time-window">
+                    </div>
+                    <div class="trigger-control d-none gap-2 align-items-center">
+                        <span>frame rate</span>
+                        <input class="form-control" style="width: 50px;" type="number" id="effect-animation-rate">
+                    </div>
+                    <div class="anim-control d-none gap-2 align-items-center">
+                        <span>Threshold:</span>
+                        <input class="form-control" type="number" id="effect-threshold">
+                    </div>
+                    <div class="input-group mt-2">
+                        <select class="select-input form-select w-auto" id="effect-type">
+                            <option>Pulse</option>
+                            <option>Animation</option>
+                            <option>Trigger</option>
+                        </select>
+                        <select class="select-input form-select w-auto" id="effect-anim"></select>
+                    </div>  
+                </div>
+                <div class="modal-footer">
+                    <button onclick="addEffect()" class="btn btn-default">
+                        <span class="fa-solid fa-plus"></span>
+                    </button>
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal">
+                        <span class="fa-solid fa-xmark"></span> Cancel
+                    </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
         <script src="bootstrap-5.3.6-dist/js/bootstrap.bundle.min.js"></script>
         <script src="led_common.js"></script>
+        <script src="editor_tools.js"></script>
         <script src="audio_modulator.js"></script>
         <script src="audio_spectrum.js"></script>
         <script src="led_editor.js"></script>

@@ -1,0 +1,8 @@
+***fix scale
+
+**deactivate tools when leaving a tab
+
+**enforce configuration of parameters before starting layout
+
+*enforce starting a new animation and frame before start animation drawing
+

@@ -61,7 +61,7 @@ class AudioLedController {
 class EffectPulse {
     constructor(animation, settings) {
         this.animation = animation;
-        this.animationRange = animation.frames.length;
+        this.animationRange = animation.getFrameCount();
         this.sampleRate = 44100;
         this.settings = settings;
     }
@@ -115,7 +115,7 @@ class EffectPulse {
         let frameIndex = Math.floor(level*step);
         if(frameIndex >= this.animationRange)
             frameIndex = this.animationRange-1; 
-        let frame = this.animation.frames[frameIndex];
+        let frame = this.animation.getFrame(frameIndex);
         console.log(avgVolume, frameIndex, step);
         currentFrame.forEach((led, index) => {
             //currentFrame[index][0] = currentFrame[index][0] * (1-alpha) + alpha*frame.leds[index][0];
@@ -132,7 +132,7 @@ class EffectPulse {
 class EffectAnim {
     constructor(animation, settings) {
         this.animation = animation;
-        this.animationRange = animation.frames.length;
+        this.animationRange = animation.getFrameCount();
         this.sampleRate = 44100;
         this.frameIndex = 0;
         this.settings = settings;
@@ -201,10 +201,10 @@ class EffectAnim {
         if(avgVolume > this.settings.range.max || avgVolume < this.settings.range.min)
             return;
         let next = this.special(avgVolume);
-        let frame = this.animation.frames[this.frameIndex];
+        let frame = this.animation.getFrame(this.frameIndex);
         if(next){
             this.frameIndex += 1;
-            if(this.frameIndex >= this.animation.frames.length)
+            if(this.frameIndex >= this.animation.getFrameCount())
                 this.frameIndex = 0;
         }
         currentFrame.forEach((led, index) => {
@@ -229,7 +229,7 @@ class EffectTriger {
     constructor(animation, endAnimation, settings) {
         this.animation = animation;
         this.endAnimation = endAnimation
-        this.animationRange = animation.frames.length;
+        this.animationRange = animation.getFrameCount();
         this.sampleRate = 44100;
         this.settings = settings;
         this.meanOverTime = 0;
@@ -299,7 +299,7 @@ class EffectTriger {
             let frameIndex = Math.floor(level*step);
             if(frameIndex >= this.animationRange)
                 frameIndex = this.animationRange-1; 
-            let frame = this.animation.frames[frameIndex];
+            let frame = this.animation.getFrame(frameIndex);
             console.log(this.meanOverTime/this.lastMeansArray.length, frameIndex, step);
             currentFrame.forEach((led, index) => {
                 currentFrame[index] = [Math.min(currentFrame[index][0] + frame.leds[index][0], 255),
@@ -311,7 +311,7 @@ class EffectTriger {
             if(Date.now()/1000.0 > (this.endAnimationLastTime + 1/this.settings.animationRate)){
                 this.endAnimationLastTime = Date.now()/1000.0;
                 this.endAnimationIndex++; 
-                if(this.endAnimationIndex == this.endAnimation.frames.length)
+                if(this.endAnimationIndex == this.endAnimation.getFrameCount())
                 {
                     this.endAnimationIndex = 0;
                     this.isThreshold = false;
@@ -322,7 +322,7 @@ class EffectTriger {
                 }
             }
             
-            let frame = this.endAnimation.frames[this.endAnimationIndex];
+            let frame = this.endAnimation.getFrame(this.endAnimationIndex);
             console.log( this.endAnimationIndex);
 
             currentFrame.forEach((led, index) => {
