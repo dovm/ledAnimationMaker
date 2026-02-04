@@ -48,19 +48,19 @@ class editorTool{
 }
 
 class drawTool extends editorTool{
-    constructor(ledStrip){
+    constructor(ledStrip, layoutArea){
         super("draw", "fa-pencil", "Draw a new LED strip");
         this.last_point = {x: 0, y: 0};
         
         this.mode = "none";
         this.ledStrip = ledStrip;
         this.cursor_style = "copy";
-        
+        this.layoutArea = layoutArea;
     }
 
     mousedown(event){
-        this.led_distance_px = parseInt(document.getElementById('pixelsPerMeter').value)/parseInt(document.getElementById('ledsPerMeter').value);
-        const {x, y} = fixPointScale(event);
+        this.led_distance = 1/this.layoutArea.getLedPerMeter();
+        const {x, y} = this.layoutArea.getRealPointFromEvent(event);
         this.last_point = {x, y};
         this.ledStrip.push({x,y})
         this.mode = "drawing";
@@ -77,12 +77,12 @@ class drawTool extends editorTool{
     
      mousemove(event){
         if(this.mode == "drawing"){
-            const {x, y} = fixPointScale(event);
+            const {x, y} =  this.layoutArea.getRealPointFromEvent(event);
             let distance = this.calc_distance(x, y, this.last_point.x, this.last_point.y);
-            while(distance > this.led_distance_px){
+            while(distance > this.led_distance){
                 const angle = Math.atan2(y - this.last_point.y, x - this.last_point.x);
-                const new_x = this.last_point.x + this.led_distance_px * Math.cos(angle);
-                const new_y = this.last_point.y + this.led_distance_px * Math.sin(angle);
+                const new_x = this.last_point.x + this.led_distance * Math.cos(angle);
+                const new_y = this.last_point.y + this.led_distance * Math.sin(angle);
                 this.ledStrip.push({x: new_x, y: new_y})
                 this.last_point = {x: new_x, y: new_y};
                 distance = this.calc_distance(x, y, this.last_point.x, this.last_point.y);
@@ -138,12 +138,16 @@ class selectTool extends editorTool{
         this.selectedLeds = [];
         this.move_start = {x: 0, y: 0};
         this.moving = false;
+        this.physicalBox = new Box(new Point(0,0), new Point(0,0));
         this.selectBox = selectBox;
     }
 
 
 
     mousedown(event){
+        const rect = event.target.getBoundingClientRect();
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
         const {x, y} = fixPointScale(event);
         if(!event.ctrlKey)
         {
@@ -159,16 +163,18 @@ class selectTool extends editorTool{
                 }
             }
         }
-        this.selectBox.setStart(new Point(x,y)).setEnd(new Point(x,y)).setMode("selecting").draw();
+        this.selectBox.setStart(new Point(canvasX,canvasY)).setEnd(new Point(canvasX,canvasY)).setMode("selecting").draw();
+        this.physicalBox = new Box(new Point(x,y), new Point(x,y));
     }
     
     getLedsInSelectedBox()
     {
         let result = []
         this.ledStrip.ledPath.forEach((point, index) => { 
+            let pPoint = layoutArea.getCanvasPoint(point.x, point.y);
             const pointBox = new Box(
-                new Point(point.x, point.y),
-                new Point(point.x + 15, point.y + 15));
+                new Point(pPoint.x, pPoint.y),
+                new Point(pPoint.x + 15, pPoint.y + 15));
             
             if(this.selectBox.box.intersects(pointBox)){
                 result.push({index, x: point.x, y: point.y});
@@ -211,10 +217,14 @@ class selectTool extends editorTool{
     }
     
     mousemove(event) {
+        const rect = event.target.getBoundingClientRect();
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
         const {x, y} = fixPointScale(event);
         if(this.selectBox.getMode() == "selecting")
         {
-            this.selectBox.setEnd(new Point(x,y)).draw()
+            this.physicalBox = new Box(this.physicalBox.getStart(), new Point(x,y));
+            this.selectBox.setEnd(new Point(canvasX,canvasY)).draw()
         }
         else if(this.moving == true){
             let diffX = x - this.move_start.x;

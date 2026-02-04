@@ -283,7 +283,7 @@ class LedStrip {
     get_led_at(point){
         let result = {point: undefined, index: -1};
         this.ledPath.forEach((led, index) => {
-            if (point.x - led.x > 0 && point.x - led.x < 20 && point.y - led.y > 0 && point.y - led.y < 20) {
+            if (point.x - led.x > 0 && point.x - led.x < 0.04 && point.y - led.y > 0 && point.y - led.y < 0.04) {
                 result = {point: led, index};
             }
         });

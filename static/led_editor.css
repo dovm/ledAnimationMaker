@@ -83,13 +83,14 @@
 
         .canvas-container {
             border: 1px solid black;
-            display: block;
+            display: flex;
             margin-left: 5px;
-            justify-content: left;
-            align-items: center;
+            justify-content: space-around;
             flex-grow: 1;
             overflow: auto;
             box-sizing: border-box;
+            align-content: space-around;
+            flex-wrap: wrap;
         }
 
         #timeline-toolbar {
@@ -232,8 +233,7 @@
         }
 
         .canvas-default-size {
-            display: block;
-            
+            border: 1px solid black;
         }
 
         .select-box{
@@ -255,3 +255,4 @@
             flex-direction: row;
             flex-shrink: 0;
         }
+        
