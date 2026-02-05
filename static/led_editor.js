@@ -174,8 +174,6 @@ layoutTab.addEventListener("shown.bs.tab", ()=>{
     statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
     statusLineLedNumber = document.getElementById("layout-status-line-led-number")
 });
-//document.querySelectorAll('.canvas-container').forEach(canvas => {
-//window.addEventListener("resize", canvasDImChange);
 
 
 var animationTab = document.getElementById("animation-tab")
@@ -197,6 +195,11 @@ effectsTab.addEventListener("shown.bs.tab", ()=>{
     updateAnimationSelectLists();
 });
 
+
+function getCurrentCanvasContainer(){
+    let tab = document.querySelector('.tab-pane.show');
+    return tab.querySelector('.canvas-container');
+}
 
 function updateFrames(led, action){
     animationCtx.animations.forEach((anim,animIndex) => {
@@ -647,35 +650,37 @@ toolContext.brushTool = new brushTool(ledStrip, animationCtx);
 toolContext.active_tool = toolContext.selectTool;
 
 canvasLayout.addEventListener('mousemove', (event) => {
-    const {x,y} = fixPointScale(event);
-    statusLineCoordinates.textContent = `${Math.floor(x)} / ${Math.floor(y)}`
+    const {x,y} = layoutArea.getRealPointFromEvent(event);
+    statusLineCoordinates.textContent = `${x.toFixed(2)} / ${y.toFixed(2)}`
     const led = ledStrip.get_led_at({x, y})
     statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
 });
 
 
 canvasAnimation.addEventListener('mousemove', (event) => {
-    statusLineCoordinates.textContent = `${event.offsetX} / ${event.offsetY}`
-    led = ledStrip.get_led_at({x:event.offsetX, y:event.offsetY})
+    const {x,y} = layoutArea.getRealPointFromEvent(event);
+    statusLineCoordinates.textContent = `${x.toFixed(2)} / ${y.toFixed(2)}`
+    led = ledStrip.get_led_at({x, y})
     statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
 });
 
 
 function zoom(event){
     event.preventDefault();
-    const rect = event.target.getBoundingClientRect();
-    const canvasX = event.clientX - rect.left;
-    const canvasY = event.clientY - rect.top;
+    const containerRect = getCurrentCanvasContainer().getBoundingClientRect();
+    const canvasAnchor = {x: event.clientX - containerRect.left, y: event.clientY - containerRect.top};
     let zoom_center = layoutArea.getRealPointFromEvent(event);
     layoutArea.scale(event.deltaY * -0.001);
+
     zoom_center = layoutArea.getCanvasPoint(zoom_center.x, zoom_center.y);
+    let corner = {x: zoom_center.x - canvasAnchor.x, y: zoom_center.y - canvasAnchor.y};
     canvasLayout.width = layoutArea.getCanvasWidth();
     canvasLayout.height = layoutArea.getCanvasHeight();
     canvasAnimation.width = layoutArea.getCanvasWidth();
     canvasAnimation.height = layoutArea.getCanvasHeight();
     canvasEffects.width = layoutArea.getCanvasWidth();
     canvasEffects.height = layoutArea.getCanvasHeight();
-    document.querySelector('.canvas-container').scrollTo(zoom_center.x, zoom_center.y);
+    getCurrentCanvasContainer().scrollTo(corner.x, corner.y);
     drawFrame();
 }
 
@@ -1495,7 +1500,7 @@ toggleSelectedLeds = function() {
 };
 
 function resizeCanvasContainer() {
-    const container = document.querySelector('.canvas-container');
+    const container = getCurrentCanvasContainer();
     const areaWidth = document.getElementById('areaWidth');
     const areaHeight = document.getElementById('areaHeight');
     const ledPerMeter = document.getElementById('ledsPerMeter');
