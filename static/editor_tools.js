@@ -7,6 +7,7 @@ class editorTool{
         this.mouseUpBound = this.mouseup.bind(this);
         this.mouseMoveBound = this.mousemove.bind(this);
         this.clickBound = this.click.bind(this);
+        this.canvas = undefined
     }
 
     mousedown(event){
@@ -26,24 +27,29 @@ class editorTool{
     }
 
     activate(canvas){
+        if(this.active)
+            return;
+        this.canvas = canvas;
         this.active = true;
         if(this.cursor_style)
-            canvas.style.cursor = this.cursor_style;
+            this.canvas.style.cursor = this.cursor_style;
         else
-            canvas.style.cursor = "default";
-        canvas.addEventListener("mousedown", this.mouseDownBound);
-        canvas.addEventListener("mouseup", this.mouseUpBound);
-        canvas.addEventListener("mousemove", this.mouseMoveBound);
-        canvas.addEventListener("click", this.clickBound);
+            this.canvas.style.cursor = "default";
+        this.canvas.addEventListener("mousedown", this.mouseDownBound);
+        this.canvas.addEventListener("mouseup", this.mouseUpBound);
+        this.canvas.addEventListener("mousemove", this.mouseMoveBound);
+        this.canvas.addEventListener("click", this.clickBound);
     }
 
-    deactivate(canvas){
+    deactivate(){
+        if(!this.active)
+            return;
         this.active = false;
-        canvas.style.cursor = "default";
-        canvas.removeEventListener("mousedown", this.mouseDownBound);
-        canvas.removeEventListener("mouseup", this.mouseUpBound);
-        canvas.removeEventListener("mousemove", this.mouseMoveBound);
-        canvas.removeEventListener("click", this.clickBound);
+        this.canvas.style.cursor = "default";
+        this.canvas.removeEventListener("mousedown", this.mouseDownBound);
+        this.canvas.removeEventListener("mouseup", this.mouseUpBound);
+        this.canvas.removeEventListener("mousemove", this.mouseMoveBound);
+        this.canvas.removeEventListener("click", this.clickBound);
     }
 }
 

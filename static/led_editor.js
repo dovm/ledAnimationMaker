@@ -173,6 +173,10 @@ layoutTab.addEventListener("shown.bs.tab", ()=>{
     layoutSelectBox.setSelBox(document.getElementById("layout-sel-box"))
     statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
     statusLineLedNumber = document.getElementById("layout-status-line-led-number")
+    toolContext.selectTool.deactivate();
+    toolContext.drawTool.deactivate();
+    toolContext.brushTool.deactivate();
+    toolContext.insertTool.deactivate();
 });
 
 
@@ -185,6 +189,10 @@ animationTab.addEventListener("shown.bs.tab", ()=>{
     layoutSelectBox.setSelBox(document.getElementById("animation-sel-box"))
     statusLineCoordinates = document.getElementById("animation-status-line-coordinates")
     statusLineLedNumber = document.getElementById("animation-status-line-led-number")
+    toolContext.selectTool.deactivate();
+    toolContext.drawTool.deactivate();
+    toolContext.brushTool.deactivate();
+    toolContext.insertTool.deactivate();
 });
 
 var effectsTab = document.getElementById("effects-tab")
@@ -231,15 +239,15 @@ function getActiveTab(){
 function drawEmptyFrame(){
     if(getActiveTab() == 'layout-tab'){
         const ctx = canvasLayout.getContext('2d');
-        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
     }
     else if(getActiveTab() == 'animation-tab'){
         const ctx = canvasAnimation.getContext('2d');
-        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
     }
     else if(getActiveTab() == 'effects-tab'){
         const ctx = canvasEffects.getContext('2d');
-        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
     }
 }
 
@@ -302,7 +310,7 @@ function drawLayoutSelectionBox(selBox, point1, point2){
 function drawFrameAnimation() {
     let frame = animationCtx.getCurrentFrame();
     const ctx = canvasAnimation.getContext('2d');
-    ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
+    ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
     p = new Path2D();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
     ctx.beginPath();
@@ -348,7 +356,7 @@ function drawFrameAnimation() {
 
 function audioDrawFrame() {
     const ctx = ledCanvasEffects.getContext('2d');
-    ctx.clearRect(0, 0, ledCanvasEffects.width, ledCanvasEffects.height);    
+    ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());    
     p = new Path2D();
     ctx.beginPath();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
@@ -531,7 +539,7 @@ function addLedStrip() {
         audioToolContext.audioCtrl.setLedStrip(ledStrip);
     }
     const ledCount = parseInt(document.getElementById('ledCount').value);
-    const spacing = Math.min(toolContext.canvasWidth / ledCount, 24);
+    const spacing = Math.min(layoutArea.getCanvasWidth() / ledCount, 24);
     for(i = 0;i < ledCount;i++) {
         x = spacing*i+10;
         y = 50;
