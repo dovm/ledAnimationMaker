@@ -37,9 +37,6 @@ class Box{
 
     minY(p1,p2){return Math.min(p1.y,p2.y);}
 
-    getStart(){ return new Point(this.left, this.top);}
-    getEnd(){ return new Point(this.right, this.bottom);}
-
     intersects(box){
         return !(
             box.right < this.left ||
@@ -51,7 +48,7 @@ class Box{
 }
 
 class SelectBox{
-    constructor(selBoxObject, layoutArea)
+    constructor(selBoxObject)
     {
         this.selBox = selBoxObject;
         this.select_mode = "start",
@@ -85,74 +82,38 @@ class SelectBox{
     }
 
     draw(){
-        this.selBox.style.top = this.box.top + "px";
-        this.selBox.style.left = this.box.left + "px";
-        this.selBox.style.width = this.box.width() + "px";
-        this.selBox.style.height = this.box.height() + "px";
+        this.selBox.style.top = this.box.top*toolContext.scale +"px";
+        this.selBox.style.left = this.box.left*toolContext.scale +"px";
+        this.selBox.style.width = this.box.width()*toolContext.scale + "px";
+        this.selBox.style.height = this.box.height()*toolContext.scale + "px";
         return this;
     }
 }
 
 class LayoutArea{
-    constructor(width, height, ledPerMeter, container){
+    constructor(width, height){
         this.width = width;
         this.height = height;
-        this.containerSize = {width: container.width -10, height: container.height-10};
-        this.containerSizeRatio = Math.min(this.containerSize.width/width, this.containerSize.height/height);
-        this.scaleFactor = 1;
-        this.pixelPerMeter = this.containerSizeRatio*this.scaleFactor;
-        this.ledPerMeter = ledPerMeter;
+        this.scale = 1;
     }
 
-    updateContainerSize(container){
-        this.containerSize = {width: container.width -10, height: container.height-10};
-        this.containerSizeRatio = Math.min(this.containerSize.width/this.width, this.containerSize.height/this.height);
-        this.pixelPerMeter = this.containerSizeRatio*this.scaleFactor;
-    }
-
-    getLedPerMeter(){ return this.ledPerMeter;}
-    setLedPerMeter(ledPerMeter){ 
-        this.ledPerMeter = ledPerMeter;
-        return this;
-    }
-    
     getWidth(){ return this.width;}
     getHeight(){ return this.height;}
-    
-    setWidth(width){ 
-        this.width = width;
-        this.containerSizeRatio = Math.min(this.containerSize.width/this.width, this.containerSize.height/this.height);
-        this.pixelPerMeter = this.containerSizeRatio*this.scaleFactor;
-        return this;
-    }
-    setHeight(height){ 
-        this.height = height;
-        this.containerSizeRatio = Math.min(this.containerSize.width/this.width, this.containerSize.height/this.height);
-        this.pixelPerMeter = this.containerSizeRatio*this.scaleFactor;
-        return this;
-    }
+    setWidth(width){ this.width = width;}
+    setHeight(height){ this.height = height;}
 
-    scale(delta){ 
-        this.scaleFactor += delta;
-        this.pixelPerMeter = this.containerSizeRatio*this.scaleFactor;
-        return this;
-    }
+    getScale(){ return this.scale;}
+    setScale(scale){ this.scale = scale;}
 
-    getCanvasWidth(){ return this.width*this.pixelPerMeter;}
-    getCanvasHeight(){ return this.height*this.pixelPerMeter;}
+    getCanvasWidth(){ return this.width*this.scale;}
+    getCanvasHeight(){ return this.height*this.scale;}
 
-    getCanvasPoint(x, y){ return {x: x*this.pixelPerMeter, y: y*this.pixelPerMeter};}
-    getRealPoint(x, y){ return {x: x/this.pixelPerMeter, y: y/this.pixelPerMeter};}
-    getRealPointFromEvent(event){ 
-        const rect = event.target.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        return this.getRealPoint(x, y);
-    }
+    getCanvasPoint(x, y){ return {x: x*this.scale, y: y*this.scale};}
+    getRealPoint(x, y){ return {x: x/this.scale, y: y/this.scale};}
 }
 
 let animationCtx = new animationContext();
-let layoutArea = new LayoutArea(2, 2, 60, {width: 0, height: 0});
+let layoutArea = new LayoutArea(2, 2);
 let ledStrip = new LedStrip(0, []);
 animationCtx.setLedStrip(ledStrip);
 
@@ -173,12 +134,7 @@ layoutTab.addEventListener("shown.bs.tab", ()=>{
     layoutSelectBox.setSelBox(document.getElementById("layout-sel-box"))
     statusLineCoordinates = document.getElementById("layout-status-line-coordinates")
     statusLineLedNumber = document.getElementById("layout-status-line-led-number")
-    toolContext.selectTool.deactivate();
-    toolContext.drawTool.deactivate();
-    toolContext.brushTool.deactivate();
-    toolContext.insertTool.deactivate();
 });
-
 
 var animationTab = document.getElementById("animation-tab")
 
@@ -189,10 +145,6 @@ animationTab.addEventListener("shown.bs.tab", ()=>{
     layoutSelectBox.setSelBox(document.getElementById("animation-sel-box"))
     statusLineCoordinates = document.getElementById("animation-status-line-coordinates")
     statusLineLedNumber = document.getElementById("animation-status-line-led-number")
-    toolContext.selectTool.deactivate();
-    toolContext.drawTool.deactivate();
-    toolContext.brushTool.deactivate();
-    toolContext.insertTool.deactivate();
 });
 
 var effectsTab = document.getElementById("effects-tab")
@@ -203,11 +155,6 @@ effectsTab.addEventListener("shown.bs.tab", ()=>{
     updateAnimationSelectLists();
 });
 
-
-function getCurrentCanvasContainer(){
-    let tab = document.querySelector('.tab-pane.show');
-    return tab.querySelector('.canvas-container');
-}
 
 function updateFrames(led, action){
     animationCtx.animations.forEach((anim,animIndex) => {
@@ -239,15 +186,15 @@ function getActiveTab(){
 function drawEmptyFrame(){
     if(getActiveTab() == 'layout-tab'){
         const ctx = canvasLayout.getContext('2d');
-        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
     }
     else if(getActiveTab() == 'animation-tab'){
         const ctx = canvasAnimation.getContext('2d');
-        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
     }
     else if(getActiveTab() == 'effects-tab'){
         const ctx = canvasEffects.getContext('2d');
-        ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
+        ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
     }
 }
 
@@ -266,13 +213,12 @@ function drawFrame(){
 
 function drawFrameLayout() {
     const ctx = canvasLayout.getContext('2d');
-    ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
+    ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
 
     p = new Path2D();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
     ctx.beginPath();
     ledStrip.ledPath.forEach((point, index) => {
-        point = layoutArea.getCanvasPoint(point.x, point.y);
         ctx.lineTo(point.x + 10, point.y + 10);
     });
     ctx.stroke();
@@ -284,7 +230,6 @@ function drawFrameLayout() {
         else{
             ctx.fillStyle = "black";
         }
-        point = layoutArea.getCanvasPoint(point.x, point.y);
         p.roundRect(point.x, point.y, 20, 20, 20);
         ctx.fill(p);
     });
@@ -292,8 +237,7 @@ function drawFrameLayout() {
     document.getElementById('layout-status-line-selected-leds').textContent = `${toolContext.selectTool.get_selected_leds_count()}`;
     toolContext.selectTool.get_selected_leds().forEach((led, index) =>{
         p = new Path2D();
-        let point = ledStrip.ledPath[led.index]
-        point = layoutArea.getCanvasPoint(point.x, point.y);
+        const point = ledStrip.ledPath[led.index]
         p.roundRect(point.x-1, point.y-1, 22, 22, 20)
         ctx.strokeStyle = "rgb(89, 0, 255)";
         ctx.stroke(p);              
@@ -310,12 +254,11 @@ function drawLayoutSelectionBox(selBox, point1, point2){
 function drawFrameAnimation() {
     let frame = animationCtx.getCurrentFrame();
     const ctx = canvasAnimation.getContext('2d');
-    ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());
+    ctx.clearRect(0, 0, toolContext.canvasWidth, toolContext.canvasHeight);
     p = new Path2D();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
     ctx.beginPath();
     ledStrip.ledPath.forEach((point, index) => {
-        point = layoutArea.getCanvasPoint(point.x, point.y);
         ctx.lineTo(point.x + 10, point.y + 10);
     });
     ctx.stroke();
@@ -323,9 +266,8 @@ function drawFrameAnimation() {
         frame.leds.forEach((color, index) => {
             p = new Path2D();
             if(!ledStrip.isDisabled(index)){
-                let point = layoutArea.getCanvasPoint(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y);
                 ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                p.roundRect(point.x, point.y, 20, 20, 20);
+                p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
                 ctx.fill(p);
             }
         });
@@ -335,7 +277,6 @@ function drawFrameAnimation() {
             p = new Path2D();
             if(!ledStrip.isDisabled(index)){ 
                 ctx.fillStyle = "black";
-                point = layoutArea.getCanvasPoint(point.x, point.y);
                 p.roundRect(point.x, point.y, 20, 20, 20);
                 ctx.fill(p);
             }
@@ -345,8 +286,7 @@ function drawFrameAnimation() {
     toolContext.selectTool.get_selected_leds().forEach((led, index) =>{
         if(!ledStrip.isDisabled(led.index)){
             p = new Path2D();
-            let point = ledStrip.ledPath[led.index]
-            point = layoutArea.getCanvasPoint(point.x, point.y);
+            const point = ledStrip.ledPath[led.index]
             p.roundRect(point.x-1, point.y-1, 22, 22, 20)
             ctx.strokeStyle = "rgb(89, 0, 255)";
             ctx.stroke(p);              
@@ -356,12 +296,11 @@ function drawFrameAnimation() {
 
 function audioDrawFrame() {
     const ctx = ledCanvasEffects.getContext('2d');
-    ctx.clearRect(0, 0, layoutArea.getCanvasWidth(), layoutArea.getCanvasHeight());    
+    ctx.clearRect(0, 0, ledCanvasEffects.width, ledCanvasEffects.height);    
     p = new Path2D();
     ctx.beginPath();
     ctx.strokeStyle = `rgb(157, 157, 157)`;
     ledStrip.ledPath.forEach((point, index) => {
-        point = layoutArea.getCanvasPoint(point.x, point.y);
         ctx.lineTo(point.x + 10, point.y + 10);
     });
     ctx.stroke();
@@ -376,8 +315,8 @@ function audioDrawFrame() {
             }
             else
                 ctx.fillStyle = "black";
-            let point = layoutArea.getCanvasPoint(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y);
-            p.roundRect(point.x, point.y, 20, 20, 20);
+            
+            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
             ctx.fill(p);
         }
     });
@@ -456,9 +395,9 @@ function generateFrameThumbnail(frame){
     const thumbnailCtx = thumbnailCanvas.getContext('2d');
     
     // Draw a scaled-down version of the frame
-    const scale = 60/Math.max(layoutArea.getHeight(), layoutArea.getWidth()); // Scale factor for the thumbnail
-    const offsetX = (60 - scale*layoutArea.getWidth())/2;
-    const offsetY = (60 - scale*layoutArea.getHeight())/2;
+    const scale = 60/Math.max(toolContext.canvasHeight, toolContext.canvasWidth); // Scale factor for the thumbnail
+    const offsetX = (60 - scale*toolContext.canvasWidth)/2;
+    const offsetY = (60 - scale*toolContext.canvasHeight)/2;
     // Draw LEDs on the thumbnail canvas
     thumbnailCtx.fillStyle = "white";
     thumbnailCtx.fillRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
@@ -525,7 +464,10 @@ function selectFrame(index){
 
 
 function fixPointScale(event){
-    return layoutArea.getRealPointFromEvent(event);
+    const rect = event.target.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return layoutArea.getRealPoint(x, y);
 }
 
 
@@ -539,7 +481,7 @@ function addLedStrip() {
         audioToolContext.audioCtrl.setLedStrip(ledStrip);
     }
     const ledCount = parseInt(document.getElementById('ledCount').value);
-    const spacing = Math.min(layoutArea.getCanvasWidth() / ledCount, 24);
+    const spacing = Math.min(toolContext.canvasWidth / ledCount, 24);
     for(i = 0;i < ledCount;i++) {
         x = spacing*i+10;
         y = 50;
@@ -652,44 +594,38 @@ function duplicateSelectedLeds() {
 }
 
 toolContext.insertTool = new insertTool(ledStrip);
-toolContext.drawTool = new drawTool(ledStrip, layoutArea);
+toolContext.drawTool = new drawTool(ledStrip);
 toolContext.selectTool = new selectTool(ledStrip, layoutSelectBox);
 toolContext.brushTool = new brushTool(ledStrip, animationCtx);
 toolContext.active_tool = toolContext.selectTool;
 
 canvasLayout.addEventListener('mousemove', (event) => {
-    const {x,y} = layoutArea.getRealPointFromEvent(event);
-    statusLineCoordinates.textContent = `${x.toFixed(2)} / ${y.toFixed(2)}`
+    const {x,y} = fixPointScale(event);
+    statusLineCoordinates.textContent = `${Math.floor(x)} / ${Math.floor(y)}`
     const led = ledStrip.get_led_at({x, y})
     statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
 });
 
 
 canvasAnimation.addEventListener('mousemove', (event) => {
-    const {x,y} = layoutArea.getRealPointFromEvent(event);
-    statusLineCoordinates.textContent = `${x.toFixed(2)} / ${y.toFixed(2)}`
-    led = ledStrip.get_led_at({x, y})
+    statusLineCoordinates.textContent = `${event.offsetX} / ${event.offsetY}`
+    led = ledStrip.get_led_at({x:event.offsetX, y:event.offsetY})
     statusLineLedNumber.textContent = (led.index == -1) ? '-' : statusLineLedNumber.textContent = `${led.index+1}`;
 });
 
 
 function zoom(event){
     event.preventDefault();
-    const containerRect = getCurrentCanvasContainer().getBoundingClientRect();
-    const canvasAnchor = {x: event.clientX - containerRect.left, y: event.clientY - containerRect.top};
-    let zoom_center = layoutArea.getRealPointFromEvent(event);
-    layoutArea.scale(event.deltaY * -0.001);
-
-    zoom_center = layoutArea.getCanvasPoint(zoom_center.x, zoom_center.y);
-    let corner = {x: zoom_center.x - canvasAnchor.x, y: zoom_center.y - canvasAnchor.y};
-    canvasLayout.width = layoutArea.getCanvasWidth();
-    canvasLayout.height = layoutArea.getCanvasHeight();
-    canvasAnimation.width = layoutArea.getCanvasWidth();
-    canvasAnimation.height = layoutArea.getCanvasHeight();
-    canvasEffects.width = layoutArea.getCanvasWidth();
-    canvasEffects.height = layoutArea.getCanvasHeight();
-    getCurrentCanvasContainer().scrollTo(corner.x, corner.y);
-    drawFrame();
+        toolContext.scale += event.deltaY * -0.001;
+        let cc = document.querySelector('.canvas-container')
+        let scaleMin = Math.min(cc.clientHeight/toolContext.canvasHeight, cc.clientWidth/toolContext.canvasWidth)
+        // Restrict scale
+        layoutArea.setScale(Math.min(Math.max(scaleMin, layoutArea.getScale()), 2));
+        
+        // Apply scale transform
+        //canvasLayout.style.zoom = `${toolContext.scale}`;
+        //canvasAnimation.style.zoom = `${toolContext.scale}`;
+        //canvasEffects.style.zoom = `${toolContext.scale}`;
 }
 
 
@@ -1507,45 +1443,39 @@ toggleSelectedLeds = function() {
     originalToggleSelectedLeds();
 };
 
-function resizeCanvasContainer() {
-    const container = getCurrentCanvasContainer();
-    const areaWidth = document.getElementById('areaWidth');
-    const areaHeight = document.getElementById('areaHeight');
-    const ledPerMeter = document.getElementById('ledsPerMeter');
+window.addEventListener('load', function () {
+    const container = document.querySelector('.canvas-container');
+    const width = document.getElementById('canvasWidth');
+    const height = document.getElementById('canvasHeight')
+    
 
-    areaWidth.value = layoutArea.getWidth();
-    areaHeight.value = layoutArea.getHeight();
-    ledPerMeter.value = layoutArea.getLedPerMeter();
-    const width = Math.floor(container.clientWidth)-1
-    const height = Math.floor(container.clientHeight)-1
-    layoutArea.updateContainerSize({width: width, height: height});
-
-    document.getElementById("ledCanvasLayout").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasLayout").height = layoutArea.getCanvasHeight();
-    document.getElementById("ledCanvasAnimation").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasAnimation").height = layoutArea.getCanvasHeight();
-    document.getElementById("ledCanvasEffects").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasEffects").height = layoutArea.getCanvasHeight();
-    drawFrame();
-}
-
-window.addEventListener('load', resizeCanvasContainer);
-window.addEventListener('resize', resizeCanvasContainer);
+    width.value = Math.floor(container.clientWidth)-1
+    height.value = Math.floor(container.clientHeight)-1
+    toolContext.canvasHeight = height.value;
+    toolContext.canvasWidth = width.value;
+    document.getElementById("ledCanvasLayout").width = width.value;
+    document.getElementById("ledCanvasLayout").height = height.value;
+    document.getElementById("ledCanvasAnimation").width = width.value;
+    document.getElementById("ledCanvasAnimation").height = height.value;
+    document.getElementById("ledCanvasEffects").width = width.value;
+    document.getElementById("ledCanvasEffects").height = height.value;
+  });
 
 function canvasDImChange(){
-    const width = parseInt(document.getElementById('areaWidth').value);    
-    const height = parseInt(document.getElementById('areaHeight').value);
-    const ledPerMeter = parseInt(document.getElementById('ledsPerMeter').value);
-    layoutArea.setWidth(width).setHeight(height).setLedPerMeter(ledPerMeter);
-    
-    document.getElementById("ledCanvasLayout").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasLayout").height = layoutArea.getCanvasHeight();
-    document.getElementById("ledCanvasAnimation").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasAnimation").height = layoutArea.getCanvasHeight();
-    document.getElementById("ledCanvasEffects").width = layoutArea.getCanvasWidth();
-    document.getElementById("ledCanvasEffects").height = layoutArea.getCanvasHeight();
+    const width = parseInt(document.getElementById('canvasWidth').value);    
+    const height = parseInt(document.getElementById('canvasHeight').value);
+    ledStrip.setDim(width, height);
+    toolContext.canvasHeight = height;
+    toolContext.canvasWidth = width;
+    document.getElementById("ledCanvasLayout").width = width;
+    document.getElementById("ledCanvasLayout").height = height;
+    document.getElementById("ledCanvasAnimation").width = width;
+    document.getElementById("ledCanvasAnimation").height = height;
+    document.getElementById("ledCanvasEffects").width = width;
+    document.getElementById("ledCanvasEffects").height = height;
     
 }
+
 
 function toggleLayoutSidebar() {
     document.getElementById('layout-sidebar').classList.toggle('collapsed');
@@ -1606,7 +1536,37 @@ audio.addEventListener("pause", () => {audioToolContext.audioCtrl.stop(); audioT
 audio.addEventListener("ended", () => {audioToolContext.audioCtrl.stop(); audioToolContext.audioSpectrum.stop()});
 
 
+function audioDrawFrame() {
+    const ctx = ledCanvasEffects.getContext('2d');
+    ctx.clearRect(25, 0, ledCanvasEffects.width-25, ledCanvasEffects.height-25);    
+    p = new Path2D();
+    ctx.beginPath();
+    ctx.strokeStyle = `rgb(157, 157, 157)`;
+    ledStrip.ledPath.forEach((point, index) => {
+        ctx.lineTo(point.x + 10, point.y + 10);
+    });
+    ctx.stroke();
 
+    let frame = animationCtx.getCurrentFrame();
+    ledStrip.ledPath.forEach((color, index) => {
+        p = new Path2D();
+        if(ledStrip.isDisabled(index)){
+            
+        }
+        else{
+            if(frame){
+                color = frame.leds[index];
+                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            }
+            else
+                ctx.fillStyle = "black";
+            
+            p.roundRect(ledStrip.ledPath[index].x, ledStrip.ledPath[index].y, 20, 20, 20);
+            ctx.fill(p);
+        }
+        
+    });
+}
 
 function loadEffectsFromFile(event) {
     const file = event.target.files[0];

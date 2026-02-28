@@ -10,6 +10,10 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="led_editor.css">
+    <script>
+        mxBasePath = "mxgraph/javascript/src";
+    </script>
+    <script src="mxgraph/javascript/mxClient.js"></script>
 </head>
 
 <body>
@@ -159,12 +163,7 @@
                             </div>
                             <div class="overflow-auto d-flex flex-column flex-grow-1">
                                 <div class="canvas-container">
-                                    <div>
-                                    <div style="position: relative; width: 0; height: 0 ">
-                                        <div id="layout-sel-box" class="select-box"></div> 
-                                    </div>   
-                                    <canvas id="ledCanvasLayout" class="canvas-default-size"></canvas>
-                                    </div>
+                                    <div id="ledGraphContainer" class="canvas-default-size"></div>
                                 </div>
                                 <div class="status-line">
                                     <label id="layout-status-line-led-number" style="width: 3rem;">0</label>

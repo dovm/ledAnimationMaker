@@ -4,7 +4,7 @@ from pathlib import Path
 import traceback
 app = Flask(__name__)
 
-PORT = int(os.environ.get('PORT', 3000))
+PORT = int(os.environ.get('PORT', 3001))
 STATIC_DIR = Path(__file__).parent / 'static'
 
 # Ensure static directory exists
