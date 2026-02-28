@@ -534,6 +534,29 @@
             </div>
           </div>
 
+          <div class="modal fade" id="add-effect-modal" tabindex="-1" role="dialog" aria-labelledby="add-effect-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="add-effect-modal-title">design led layout</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="canvas-container">
+                        <canvas id="ledCanvasLayoutDesign" class="canvas-default-size"></canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="saveLedLayoutDesign()" class="btn btn-default">
+                        <span class="fa-solid fa-save"></span>
+                    </button>
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal">
+                        <span class="fa-solid fa-xmark"></span> Cancel
+                    </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
         <script src="bootstrap-5.3.6-dist/js/bootstrap.bundle.min.js"></script>
         <script src="led_common.js"></script>
         <script src="editor_tools.js"></script>
