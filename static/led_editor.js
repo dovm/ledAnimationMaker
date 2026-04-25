@@ -12,7 +12,7 @@ const effectFrameThumbnails = document.getElementById('effect-frame-thumbnails')
 const animationList = document.getElementById('animation-list');
 const ledCanvasLayoutDesign = document.getElementById('ledCanvasLayoutDesign');
 
-class Point{
+class point{
     constructor(x, y){
         this.x = x;
         this.y = y;
@@ -53,8 +53,8 @@ class SelectBox{
     {
         this.selBox = selBoxObject;
         this.select_mode = "start",
-        this.start =  new Point(0,0);
-        this.end = new Point(0,0);
+        this.start =  new point(0,0);
+        this.end = new point(0,0);
         this.box = new Box(this.start, this.end);
     }
 
@@ -76,8 +76,8 @@ class SelectBox{
     }
 
     reset(){
-        this.start =  new Point(0,0);
-        this.end = new Point(0,0);
+        this.start =  new point(0,0);
+        this.end = new point(0,0);
         this.box = new Box(this.start, this.end);
         return this;
     }
@@ -1117,6 +1117,16 @@ function fadeColorScheme(frameIndex, totalFrames) {
     ];
 }
 
+// Expose color schemes on `window` so other classic scripts can find them
+// reliably. (In some embeddings, top-level `function` declarations don't
+// attach to `window`; cross-script identifier lookup via scope chain still
+// works, but explicit `window.*` exposure adds belt-and-suspenders safety.)
+try {
+    window.rainbowColorScheme = rainbowColorScheme;
+    window.fadeColorScheme = fadeColorScheme;
+    window.randomColorScheme = randomColorScheme;
+} catch (e) { /* ignore */ }
+
 function hexToRgb(hex) {
     const r = parseInt(hex.substr(1,2), 16);
     const g = parseInt(hex.substr(3,2), 16);
@@ -1445,36 +1455,48 @@ toggleSelectedLeds = function() {
     originalToggleSelectedLeds();
 };
 
+function setCanvasDim(w, h){
+    toolContext.canvasHeight = h;
+    toolContext.canvasWidth = w;
+    const ids = ["ledCanvasLayout", "ledCanvasAnimation", "ledCanvasEffects"];
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.width = w;
+            el.height = h;
+        }
+    }
+}
+
 window.addEventListener('load', function () {
     const container = document.querySelector('.canvas-container');
-    const width = document.getElementById('canvasWidth');
-    const height = document.getElementById('canvasHeight')
-    
+    const widthEl = document.getElementById('canvasWidth');
+    const heightEl = document.getElementById('canvasHeight');
 
-    width.value = Math.floor(container.clientWidth)-1
-    height.value = Math.floor(container.clientHeight)-1
-    toolContext.canvasHeight = height.value;
-    toolContext.canvasWidth = width.value;
-    document.getElementById("ledCanvasLayout").width = width.value;
-    document.getElementById("ledCanvasLayout").height = height.value;
-    document.getElementById("ledCanvasAnimation").width = width.value;
-    document.getElementById("ledCanvasAnimation").height = height.value;
-    document.getElementById("ledCanvasEffects").width = width.value;
-    document.getElementById("ledCanvasEffects").height = height.value;
-  });
+    let w, h;
+    if (widthEl && heightEl && container) {
+        widthEl.value = Math.floor(container.clientWidth) - 1;
+        heightEl.value = Math.floor(container.clientHeight) - 1;
+        w = parseInt(widthEl.value);
+        h = parseInt(heightEl.value);
+    } else if (container) {
+        w = Math.max(1, Math.floor(container.clientWidth) - 1);
+        h = Math.max(1, Math.floor(container.clientHeight) - 1);
+    } else {
+        w = 600;
+        h = 600;
+    }
+    setCanvasDim(w, h);
+});
 
 function canvasDImChange(){
-    const width = parseInt(document.getElementById('canvasWidth').value);    
-    const height = parseInt(document.getElementById('canvasHeight').value);
+    const widthEl = document.getElementById('canvasWidth');
+    const heightEl = document.getElementById('canvasHeight');
+    if (!widthEl || !heightEl) return;
+    const width = parseInt(widthEl.value);
+    const height = parseInt(heightEl.value);
     ledStrip.setDim(width, height);
-    toolContext.canvasHeight = height;
-    toolContext.canvasWidth = width;
-    document.getElementById("ledCanvasLayout").width = width;
-    document.getElementById("ledCanvasLayout").height = height;
-    document.getElementById("ledCanvasAnimation").width = width;
-    document.getElementById("ledCanvasAnimation").height = height;
-    document.getElementById("ledCanvasEffects").width = width;
-    document.getElementById("ledCanvasEffects").height = height;
+    setCanvasDim(width, height);
 }
 
 

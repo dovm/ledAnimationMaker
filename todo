@@ -1,7 +1,25 @@
 
 
+for wireConnection, add parameter of "length"
+double click on the wire should open a dialig to change the length
+when drawed on the screen, add the length writen in the midle of the wire
+make shure it is also added to the serilaize objects for save and load
 
-**enforce configuration of parameters before starting layout
 
-*enforce starting a new animation and frame before start animation drawing
+now let work on effects tab
+effects are defined on a led strip, and can have nultiple effect
+each effect represent a specific logic that will run an animation on a strip
+be multiple things buf for now, just make the effcts tab compatible as well with the led_project
+
+
+add the effects to the option of saving and loading
+a file can have only layout, layout and animation or layout , animation and effects
+and update file menu in effects to have the same options
+
+fix group animation in the animation tab to match the new approch of led_project
+the groups parameter (bool) define if the animation is preform only one one group and change color for each frame
+or that the animation is preformed on all the groups by there index and each frame a diffrent group will be painted with color
+
+remove load and save buttons from animation list
+and remove load and save buttons from effect list
 

@@ -10,10 +10,6 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="led_editor.css">
-    <script>
-        mxBasePath = "mxgraph/javascript/src";
-    </script>
-    <script src="mxgraph/javascript/mxClient.js"></script>
 </head>
 
 <body>
@@ -42,17 +38,17 @@
                             <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 File Menu
                             </a>
-                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown">
                                 <div class="dropdown-item">
-                                    <input type="file" class="custom-file-input hidden-input" onchange="loadLedsConfig(event)" id="load-layout" accept=".json">
+                                    <input type="file" class="custom-file-input hidden-input" onchange="loadLedsConfig(event)" id="load-project-layout" accept=".json">
                                     </input>
-                                    <label class="custom-file-label" for="load-layout">
-                                        <span class="fa-solid fa-file-import"></span>  Load layout
+                                    <label class="custom-file-label" for="load-project-layout">
+                                        <span class="fa-solid fa-file-import"></span>  Load project
                                     </label>
                                 </div>
                                 <div class="dropdown-item"  onclick="saveLedsConfig()">
                                     <label>
-                                    <span class="fa-solid fa-save"></span>  save layout
+                                    <span class="fa-solid fa-save"></span>  Save project
                                     </label>
                                 </div>
                                 <span class="dropdown-divider"></span>
@@ -70,17 +66,22 @@
                 
                 <div class="file-menu-content" data-tab="animation-tab">
                     <ul class="navbar-nav mr-auto">
-                        <li class="nav-item active">
-                            <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <li class="nav-item dropdown active">
+                            <a class="nav-link dropdown-toggle" id="fileMenuDropdownAnim" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 File Menu
                             </a>
-                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
-                                <div class="input-group">
-                                    <input type="file" class="form-control" onchange="loadLedsConfig(event)">
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdownAnim">
+                                <div class="dropdown-item">
+                                    <input type="file" class="custom-file-input hidden-input" onchange="loadLedsConfig(event)" id="load-project-animation" accept=".json">
                                     </input>
-                                    <button type="button" class="btn btn-default" onclick="saveLedsConfig()">
-                                        <span class="fa-solid fa-save"></span>
-                                    </button>
+                                    <label class="custom-file-label" for="load-project-animation">
+                                        <span class="fa-solid fa-file-import"></span>  Load project
+                                    </label>
+                                </div>
+                                <div class="dropdown-item" onclick="saveLedsConfig()">
+                                    <label>
+                                    <span class="fa-solid fa-save"></span>  Save project
+                                    </label>
                                 </div>
                             </div>
                         </li>
@@ -93,17 +94,22 @@
                 </div>
                 <div class="file-menu-content" data-tab="effects-tab">
                     <ul class="navbar-nav mr-auto">
-                        <li class="nav-item active">
-                            <a class="nav-link dropdown-toggle" id="fileMenuDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <li class="nav-item dropdown active">
+                            <a class="nav-link dropdown-toggle" id="fileMenuDropdownEffects" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 File Menu
                             </a>
-                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdown" id="file-menu-dropdown">
-                                <div class="input-group">
-                                    <input type="file" class="form-control" onchange="loadLedsConfig(event)">
+                            <div class="dropdown-menu" aria-labelledby="fileMenuDropdownEffects">
+                                <div class="dropdown-item">
+                                    <input type="file" class="custom-file-input hidden-input" onchange="loadLedsConfig(event)" id="load-project-effects" accept=".json">
                                     </input>
-                                    <button type="button" class="btn btn-default" onclick="saveLedsConfig()">
-                                        <span class="fa-solid fa-save"></span>
-                                    </button>
+                                    <label class="custom-file-label" for="load-project-effects">
+                                        <span class="fa-solid fa-file-import"></span>  Load project
+                                    </label>
+                                </div>
+                                <div class="dropdown-item" onclick="saveLedsConfig()">
+                                    <label>
+                                    <span class="fa-solid fa-save"></span>  Save project
+                                    </label>
                                 </div>
                             </div>
                         </li>
@@ -119,51 +125,32 @@
         
         <div class="h-100 bg-light tab-content flex-grow-1 overflow-hidden" id="myTabContent">
             <div class="h-100 tab-pane fade show active border border-top-0 rounded-bottom" id="layout" role="tabpanel">
-                <div class="h-100 d-flex flex-column tab_container"> 
+                <div class="h-100 d-flex flex-column tab_container">
                     <div class="h-100 overflow-auto d-flex ">
                         <div class="overflow-auto d-flex flex-grow-1 pt-1">
                             <div class="toolbar">
-                            <div class="btn-toolbar" role="toolbar">
-                                <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
-                                    <button type="button" class="btn btn-default" onclick="select_tool()">
-                                        <span class="fa-solid fa-object-group"></span>
-                                    </button>
-                                    <button class="btn btn-default" type="button" onclick="rotateTool()">
-                                        <span class="fa-solid fa-rotate"></span>
-                                    </button>
-                                    <input type="number" id="rotate_angle" class="form-control"
-                                        min="0" max="360" value="90">
-                                    <button type="button" class="btn btn-default" onclick="erase_tool()">
-                                        <span class="fa-solid fa-eraser"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="draw_tool()">
-                                        <span class="fa-solid fa-pencil"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="insertSelectedLeds()">
-                                        <span class="fa-solid fa-scissors"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default"
-                                        onclick="duplicateSelectedLeds()">
-                                        <span class="fa-solid fa-clone"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="deleteSelectedLeds()">
-                                        <span class="fa-solid fa-trash"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="toggleSelectedLeds()">
-                                        <span class="fa-solid fa-toggle-off"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="undo()">
-                                        <span class="fa-solid fa-undo"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="redo()">
-                                        <span class="fa-solid fa-redo"></span>
-                                    </button>
-                                </div>     
-                            </div>
+                                <div class="btn-toolbar" role="toolbar">
+                                    <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
+                                        <button type="button" id="add-strip-btn" class="btn btn-default" title="Add LED strip">
+                                            <span class="fa-solid fa-plus"></span>
+                                        </button>
+                                        <button type="button" id="delete-strip-btn" class="btn btn-default" title="Delete selected strip" disabled>
+                                            <span class="fa-solid fa-trash"></span>
+                                        </button>
+                                        <button type="button" id="rotate-strip-btn" class="btn btn-default" title="Rotate selected strip" disabled>
+                                            <span class="fa-solid fa-rotate"></span>
+                                        </button>
+                                        <input type="number" id="strip-rotate-angle" class="form-control"
+                                            min="-360" max="360" value="90" title="Rotation angle (degrees)">
+                                        <button type="button" id="connect-strip-btn" class="btn btn-default" title="Connect two strips with a wire">
+                                            <span class="fa-solid fa-link"></span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="overflow-auto d-flex flex-column flex-grow-1">
                                 <div class="canvas-container">
-                                    <div id="ledGraphContainer" class="canvas-default-size"></div>
+                                    <canvas id="ledCanvasLayoutProject" class="layout-project-canvas"></canvas>
                                 </div>
                                 <div class="status-line">
                                     <label id="layout-status-line-led-number" style="width: 3rem;">0</label>
@@ -193,13 +180,6 @@
                                         </button>
                                         <button type="button" class="btn btn-default" onclick="deleteAnimation()">
                                             <span class="fa-solid fa-trash"></span>
-                                        </button>
-                                        <label class="btn btn-default" for="load-animation">
-                                            <span class="fa-solid fa-folder-open"></span>
-                                        </label>
-                                        <input onchange="loadAnimationFromFile(event)" type="file" id="load-animation" accept=".json" class="hidden-input"/>  
-                                        <button type="button" class="btn btn-default" onclick="saveAnimationToFile()">
-                                            <span class="fa-solid fa-save"></span>
                                         </button>
                                     </div>
                                 </div>
@@ -255,12 +235,7 @@
                             </div>
                             <div class="overflow-auto d-flex flex-column flex-grow-1">
                                 <div class="canvas-container">
-                                    <div>
-                                    <div style="position: relative; width: 0; height: 0">
-                                        <div id="animation-sel-box" class="select-box"></div> 
-                                    </div> 
-                                    <canvas id="ledCanvasAnimation" class="canvas-default-size"></canvas>
-                                    </div>
+                                    <canvas id="ledCanvasAnimation" class="layout-project-canvas"></canvas>
                                 </div>
                                 <div class="status-line">
                                     <label id="animation-status-line-led-number" style="width: 3rem;">0</label>
@@ -355,13 +330,6 @@
                             <div class="box-wrapper d-flex flex-column overflow-auto">
                                     <span class="box-label">Effect list:</span>
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-default" onclick="saveEffectsToFile()">
-                                            <span class="fa-solid fa-save"></span>
-                                        </button>
-                                        <label class="btn btn-default" for="load-effects">
-                                            <span class="fa-solid fa-folder-open"></span>
-                                        </label>
-                                        <input onchange="loadEffectsFromFile(event)" type="file" id="load-effects" accept=".json" class="hidden-input"/>    
                                         <button onclick="deleteEffect()" class="btn btn-default">
                                             <span class="fa-solid fa-trash"></span>
                                         </button>
@@ -557,13 +525,89 @@
             </div>
           </div>
 
+          <div class="modal fade" id="led-strip-edit-modal" tabindex="-1" role="dialog"
+               aria-labelledby="led-strip-edit-modal-title" aria-hidden="true"
+               data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="led-strip-edit-modal-title">Edit LED strip</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-3 mb-2 align-items-center">
+                        <div class="input-group" style="width: 180px;">
+                            <span class="input-group-text">Length</span>
+                            <input id="strip-edit-length" type="number" class="form-control" min="0.1" step="0.1" value="1">
+                            <span class="input-group-text">m</span>
+                        </div>
+                        <div class="input-group" style="width: 200px;">
+                            <span class="input-group-text">LEDs</span>
+                            <input id="strip-edit-density" type="number" class="form-control" min="1" max="240" value="60">
+                            <span class="input-group-text">/m</span>
+                        </div>
+                        <small class="text-muted">
+                            Drag a point to reshape. Right-click a point to pin/unpin it.
+                        </small>
+                    </div>
+                    <div class="strip-edit-canvas-wrapper">
+                        <canvas id="ledCanvasStripEdit"></canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="strip-edit-delete" type="button" class="btn btn-default me-auto">
+                        <span class="fa-solid fa-trash"></span> Delete
+                    </button>
+                    <button id="strip-edit-save" type="button" class="btn btn-default">
+                        <span class="fa-solid fa-save"></span> Save
+                    </button>
+                    <button id="strip-edit-cancel" type="button" class="btn btn-default">
+                        <span class="fa-solid fa-xmark"></span> Cancel
+                    </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <!-- Wire (connection) edit modal -->
+        <div class="modal fade" id="wire-edit-modal" tabindex="-1" role="dialog"
+             aria-labelledby="wire-edit-modal-title" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="wire-edit-modal-title">Wire</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <label for="wire-edit-length" class="form-label">Length (cm)</label>
+                <input type="number" id="wire-edit-length" class="form-control"
+                       min="0" step="0.1" value="0">
+              </div>
+              <div class="modal-footer">
+                <button id="wire-edit-cancel" type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
+                <button id="wire-edit-save" type="button" class="btn btn-default">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legacy elements kept hidden so existing animation/effects scripts continue to work. -->
+        <div class="legacy-hidden" aria-hidden="true">
+            <canvas id="ledCanvasLayout"></canvas>
+            <div id="layout-sel-box" class="select-box"></div>
+            <div id="animation-sel-box" class="select-box"></div>
+        </div>
+
         <script src="bootstrap-5.3.6-dist/js/bootstrap.bundle.min.js"></script>
         <script src="led_common.js"></script>
         <script src="editor_tools.js"></script>
         <script src="audio_modulator.js"></script>
         <script src="audio_spectrum.js"></script>
+        <script src="layout_canvas.js"></script>
         <script src="led_editor.js"></script>
         <script src="led_audio_editor.js"></script>
+        <script src="layout_project.js"></script>
+        <script src="led_animation.js"></script>
+        <script src="effects_project.js"></script>
 
 </body>
 

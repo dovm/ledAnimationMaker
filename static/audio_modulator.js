@@ -1,7 +1,8 @@
 class AudioLedController {
     constructor(canvas, ledStrip) {
         this.ledStrip = ledStrip;
-        this.frame = new Array(this.ledStrip.ledCount).fill([0,0,0]);
+        const count = (ledStrip && Number.isFinite(ledStrip.ledCount)) ? ledStrip.ledCount : 0;
+        this.frame = new Array(count).fill([0,0,0]);
         this.canvas = canvas;
         this.effects = [];
         this.audioEnd = false;
@@ -41,9 +42,13 @@ class AudioLedController {
     }
 
     applyEffects(audioData) {
-        this.frame = new Array(this.ledStrip.ledCount).fill([0,0,0]);
-        this.effects.forEach(effect => effect.apply(audioData, this.frame, 1/ this.effects.length));
-        this.renderLeds();
+        // Legacy controller is replaced at load time by ProjectAudioLedController.
+        // Kept defensive in case start() is invoked before the swap: just drive
+        // each effect's compute() so internal state stays consistent.
+        if (!this.effects) return;
+        for (const effect of this.effects) {
+            if (typeof effect.compute === 'function') effect.compute(audioData);
+        }
     }
 
     renderLeds() {
@@ -94,12 +99,12 @@ class EffectPulse {
             avgVolume += audioData[i];
         }
         avgVolume = avgVolume/(maxIndex - minIndex);
-        //let biasVolume = 0;
-        //for (let i = minIndexBias; i < maxIndexBias; i++) {
-        //    biasVolume += audioData[i];
-        //}
+        let maxValue = 0;
+        for (let i = minIndex; i < maxIndex; i++) {
+            maxValue = Math.max(maxValue, audioData[i]);
+        }
         //biasVolume = biasVolume/(maxIndexBias - minIndexBias);
-        return avgVolume;// - biasVolume/2;
+        return maxValue;// - biasVolume/2;
     }
 
 
@@ -107,25 +112,28 @@ class EffectPulse {
         this.sampleRate = sampleRate;
     }
 
-    apply(audioData, currentFrame, alpha) {
-        let range_norm = this.settings.range.max - this.settings.range.min;
-        let step = this.animationRange/range_norm;
-        let avgVolume = this.special(audioData);//avgVolume/(maxIndex - minIndex);
-        let level = this.clipAndNorm(avgVolume);
-        let frameIndex = Math.floor(level*step);
-        if(frameIndex >= this.animationRange)
-            frameIndex = this.animationRange-1; 
-        let frame = this.animation.getFrame(frameIndex);
-        console.log(avgVolume, frameIndex, step);
-        currentFrame.forEach((led, index) => {
-            //currentFrame[index][0] = currentFrame[index][0] * (1-alpha) + alpha*frame.leds[index][0];
-            //currentFrame[index][1] = currentFrame[index][1] * (1-alpha) + alpha*frame.leds[index][1];
-            //currentFrame[index][2] = currentFrame[index][2] * (1-alpha) + alpha*frame.leds[index][2];
+    // Pure: returns the frame index in the configured animation that should
+    // be displayed for the given audio sample. Rendering is the controller's
+    // responsibility.
+    compute(audioData) {
+        const total = this._frameCount();
+        if (total <= 0) return null;
+        const range_norm = this.settings.range.max - this.settings.range.min;
+        if (!(range_norm > 0)) return null;
+        const step = total / range_norm;
+        const avgVolume = this.special(audioData);
+        const level = this.clipAndNorm(avgVolume);
+        let frameIndex = Math.floor(level * step);
+        if (frameIndex >= total) frameIndex = total - 1;
+        if (frameIndex < 0) frameIndex = 0;
+        return { animation: this.animation, frameIndex };
+    }
 
-            currentFrame[index] = [Math.min(currentFrame[index][0] + frame.leds[index][0], 255),
-            Math.min(currentFrame[index][1] + frame.leds[index][1], 255),
-            Math.min(currentFrame[index][2] + frame.leds[index][2], 255)];
-        });
+    _frameCount() {
+        if (!this.animation) return 0;
+        if (typeof this.animation.getFrameCount === 'function') return this.animation.getFrameCount();
+        if (Array.isArray(this.animation.frames)) return this.animation.frames.length;
+        return 0;
     }
 }
 
@@ -196,22 +204,28 @@ class EffectAnim {
         this.sampleRate = sampleRate;
     }
 
-    apply(audioData, currentFrame, alpha) {
-        let avgVolume = this.getPower(audioData);
-        if(avgVolume > this.settings.range.max || avgVolume < this.settings.range.min)
-            return;
-        let next = this.special(avgVolume);
-        let frame = this.animation.getFrame(this.frameIndex);
-        if(next){
-            this.frameIndex += 1;
-            if(this.frameIndex >= this.animation.getFrameCount())
-                this.frameIndex = 0;
+    compute(audioData) {
+        const total = this._frameCount();
+        if (total <= 0) return null;
+        const avgVolume = this.getPower(audioData);
+        if (avgVolume > this.settings.range.max || avgVolume < this.settings.range.min) return null;
+        const next = this.special(avgVolume);
+        // Snapshot the index BEFORE advancing, so the returned frame matches
+        // the legacy behavior (advance happens after rendering).
+        const idx = (this.frameIndex >= 0 && this.frameIndex < total) ? this.frameIndex : 0;
+        if (next) {
+            this.frameIndex = (this.frameIndex + 1) % total;
+        } else if (this.frameIndex >= total) {
+            this.frameIndex = 0;
         }
-        currentFrame.forEach((led, index) => {
-            currentFrame[index] = [Math.min(currentFrame[index][0] + frame.leds[index][0], 255),
-            Math.min(currentFrame[index][1] + frame.leds[index][1], 255),
-            Math.min(currentFrame[index][2] + frame.leds[index][2], 255)];
-        });
+        return { animation: this.animation, frameIndex: idx };
+    }
+
+    _frameCount() {
+        if (!this.animation) return 0;
+        if (typeof this.animation.getFrameCount === 'function') return this.animation.getFrameCount();
+        if (Array.isArray(this.animation.frames)) return this.animation.frames.length;
+        return 0;
     }
 }
 
@@ -286,51 +300,54 @@ class EffectTriger {
         return this.meanOverTime/this.lastMeansArray.length;
     }
 
-    apply(audioData, currentFrame, alpha) {
-        if(! this.isThreshold){
-            if(!this.lastMeansArray)
-                this.lastMeansArray = new Array(Math.ceil(this.sampleRate/(audioData.length*2)*this.settings.timeWindow)).fill( 0);
-            let avgVolume = this.special(audioData);
-
-            let range_norm = this.settings.range.max - this.settings.range.min;
-            let step = range_norm/this.animationRange;
-            let level = this.clipAndNorm(this.calcMeanOverTime(avgVolume));
-
-            let frameIndex = Math.floor(level*step);
-            if(frameIndex >= this.animationRange)
-                frameIndex = this.animationRange-1; 
-            let frame = this.animation.getFrame(frameIndex);
-            console.log(this.meanOverTime/this.lastMeansArray.length, frameIndex, step);
-            currentFrame.forEach((led, index) => {
-                currentFrame[index] = [Math.min(currentFrame[index][0] + frame.leds[index][0], 255),
-                Math.min(currentFrame[index][1] + frame.leds[index][1], 255),
-                Math.min(currentFrame[index][2] + frame.leds[index][2], 255)];
-            });
-        }
-        else {
-            if(Date.now()/1000.0 > (this.endAnimationLastTime + 1/this.settings.animationRate)){
-                this.endAnimationLastTime = Date.now()/1000.0;
-                this.endAnimationIndex++; 
-                if(this.endAnimationIndex == this.endAnimation.getFrameCount())
-                {
-                    this.endAnimationIndex = 0;
-                    this.isThreshold = false;
-                    this.lastMeansArray = undefined;
-                    this.meanOverTime = 0;
-                    this.lastMeanArrayIndex = 0;
-                    return
-                }
+    compute(audioData) {
+        if (!this.isThreshold) {
+            const total = this._frameCount(this.animation);
+            if (total <= 0) return null;
+            if (!this.lastMeansArray) {
+                this.lastMeansArray = new Array(
+                    Math.max(1, Math.ceil(this.sampleRate / (audioData.length * 2) * this.settings.timeWindow))
+                ).fill(0);
             }
-            
-            let frame = this.endAnimation.getFrame(this.endAnimationIndex);
-            console.log( this.endAnimationIndex);
-
-            currentFrame.forEach((led, index) => {
-                currentFrame[index] = [Math.min(currentFrame[index][0] + frame.leds[index][0], 255),
-                Math.min(currentFrame[index][1] + frame.leds[index][1], 255),
-                Math.min(currentFrame[index][2] + frame.leds[index][2], 255)];
-            });
-            
+            const avgVolume = this.special(audioData);
+            const range_norm = this.settings.range.max - this.settings.range.min;
+            // Preserves legacy step formula (kept verbatim from the previous
+            // apply() so behavior doesn't change with this refactor).
+            const step = range_norm > 0 ? range_norm / total : 0;
+            const level = this.clipAndNorm(this.calcMeanOverTime(avgVolume));
+            let frameIndex = Math.floor(level * step);
+            if (frameIndex >= total) frameIndex = total - 1;
+            if (frameIndex < 0) frameIndex = 0;
+            return { animation: this.animation, frameIndex };
         }
+
+        const totalEnd = this._frameCount(this.endAnimation);
+        if (totalEnd <= 0) {
+            this.isThreshold = false;
+            this.lastMeansArray = undefined;
+            this.meanOverTime = 0;
+            this.lastMeanArrayIndex = 0;
+            return null;
+        }
+        if (Date.now() / 1000.0 > (this.endAnimationLastTime + 1 / this.settings.animationRate)) {
+            this.endAnimationLastTime = Date.now() / 1000.0;
+            this.endAnimationIndex++;
+            if (this.endAnimationIndex >= totalEnd) {
+                this.endAnimationIndex = 0;
+                this.isThreshold = false;
+                this.lastMeansArray = undefined;
+                this.meanOverTime = 0;
+                this.lastMeanArrayIndex = 0;
+                return null;
+            }
+        }
+        return { animation: this.endAnimation, frameIndex: this.endAnimationIndex };
+    }
+
+    _frameCount(anim) {
+        if (!anim) return 0;
+        if (typeof anim.getFrameCount === 'function') return anim.getFrameCount();
+        if (Array.isArray(anim.frames)) return anim.frames.length;
+        return 0;
     }
 }

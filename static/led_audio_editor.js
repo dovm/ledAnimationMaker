@@ -1,3 +1,211 @@
+
+const ledCanvasEffects = document.getElementById('ledCanvasEffects');
+
+let audioToolContext = {
+    audioCtrl: undefined,
+    audioSpectrum: undefined
+}
+
+// NOTE: the audio nodes below are declared with `var` (not `const`) so that if
+// any single setup step throws, the rest of this script can still execute and
+// later code (start_mic / stop_mic / play handlers) sees them as `undefined`
+// instead of hitting a temporal-dead-zone ReferenceError. Each setup step is
+// also wrapped in its own try/catch so one bad call (e.g. an AudioContext that
+// can't be created before user interaction, or createMediaElementSource being
+// called twice on the same audio element) doesn't abort the whole bootstrap.
+
+var audio = document.getElementById("audioElement");
+var specCanvas = document.getElementById("spectrum-canvas");
+var audioContext = null;
+var analyser = null;
+var source = null;
+var gain_node = null;
+
+try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+    console.error('AudioContext init failed:', e);
+}
+
+try {
+    audioToolContext.audioCtrl = new AudioLedController(ledCanvasEffects, ledStrip);
+} catch (e) {
+    console.error('AudioLedController init failed:', e);
+}
+
+if (audioContext) {
+    try {
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.connect(audioContext.destination);
+    } catch (e) {
+        console.error('Analyser init failed:', e);
+    }
+}
+
+if (specCanvas) {
+    try {
+        audioToolContext.audioSpectrum = new AudioSpectrum(specCanvas);
+        if (analyser) audioToolContext.audioSpectrum.setAnalayzer(analyser);
+    } catch (e) {
+        console.error('AudioSpectrum init failed:', e);
+    }
+}
+
+if (audioToolContext.audioCtrl && analyser) {
+    try { audioToolContext.audioCtrl.setAnalayzer(analyser); } catch (e) { console.error(e); }
+}
+
+if (audioContext && audio) {
+    try {
+        source = audioContext.createMediaElementSource(audio);
+        if (analyser) source.connect(analyser);
+    } catch (e) {
+        console.error('createMediaElementSource failed:', e);
+    }
+}
+
+if (audioContext) {
+    try {
+        gain_node = audioContext.createGain();
+        if (analyser) gain_node.connect(analyser);
+        gain_node.gain.value = 1;
+    } catch (e) {
+        console.error('GainNode init failed:', e);
+    }
+}
+
+// Ensure the context is resumed after user interaction (required by browsers)
+if (audio) {
+    audio.addEventListener("play", () => {
+        if (audioContext && audioContext.state === "suspended") {
+            audioContext.resume();
+        }
+        try { audioToolContext.audioCtrl && audioToolContext.audioCtrl.start(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioSpectrum && audioToolContext.audioSpectrum.start(); } catch (e) { console.error(e); }
+    });
+
+    audio.addEventListener("pause", () => {
+        try { audioToolContext.audioCtrl && audioToolContext.audioCtrl.stop(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioSpectrum && audioToolContext.audioSpectrum.stop(); } catch (e) { console.error(e); }
+    });
+    audio.addEventListener("ended", () => {
+        try { audioToolContext.audioCtrl && audioToolContext.audioCtrl.stop(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioSpectrum && audioToolContext.audioSpectrum.stop(); } catch (e) { console.error(e); }
+    });
+}
+
+
+
+function changeAudioControlsVisibilty(){
+    const micControls = document.querySelectorAll('.mic-controls');
+    const audioFileControls = document.querySelectorAll('.audio-file-controls');
+    if(document.getElementById("microphone-input").checked == true)
+    {
+        micControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        audioFileControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        audio.pause()
+    }
+    else
+    {
+        audioFileControls.forEach(control => {control.classList.add("d-flex"); control.classList.remove("d-none");});
+        micControls.forEach(control => {control.classList.add("d-none"); control.classList.remove("d-flex");});
+        stop_mic();
+    }
+}
+var micSource = null;
+
+// Lazily build any audio-pipeline pieces that didn't come up at script-load
+// time (e.g. AudioContext requires a user gesture in some browsers, so the
+// initial top-level `new AudioContext()` may have failed). Returns true if
+// `gain_node` and `analyser` are usable after this call.
+function ensureAudioPipeline() {
+    try {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    } catch (e) {
+        console.error('AudioContext init failed:', e);
+        return false;
+    }
+    if (!analyser) {
+        try {
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.connect(audioContext.destination);
+        } catch (e) { console.error('Analyser init failed:', e); }
+    }
+    if (specCanvas && !audioToolContext.audioSpectrum) {
+        try {
+            audioToolContext.audioSpectrum = new AudioSpectrum(specCanvas);
+            if (analyser) audioToolContext.audioSpectrum.setAnalayzer(analyser);
+        } catch (e) { console.error(e); }
+    }
+    if (audioToolContext.audioCtrl && analyser && !audioToolContext.audioCtrl.analyser) {
+        try { audioToolContext.audioCtrl.setAnalayzer(analyser); } catch (e) { console.error(e); }
+    }
+    if (!source && audioContext && audio) {
+        try {
+            source = audioContext.createMediaElementSource(audio);
+            if (analyser) source.connect(analyser);
+        } catch (e) {
+            // createMediaElementSource throws if it has already been called for
+            // this element. That's fine; the existing source is still wired up.
+        }
+    }
+    if (!gain_node && audioContext) {
+        try {
+            gain_node = audioContext.createGain();
+            if (analyser) gain_node.connect(analyser);
+            gain_node.gain.value = 1;
+        } catch (e) { console.error('GainNode init failed:', e); }
+    }
+    return !!(gain_node && analyser);
+}
+
+function start_mic(){
+    if (!ensureAudioPipeline()) {
+        alert('Audio pipeline is not ready.');
+        return;
+    }
+    if(micSource)
+    {
+        try { micSource.connect(gain_node); } catch (e) { console.error(e); }
+        try { audioToolContext.audioCtrl && audioToolContext.audioCtrl.start(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioSpectrum && audioToolContext.audioSpectrum.start(); } catch (e) { console.error(e); }
+    }
+    else{
+    if (!navigator.getUserMedia)
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+                      navigator.mozGetUserMedia || navigator.msGetUserMedia;
+    
+    if (navigator.getUserMedia){
+    
+    navigator.getUserMedia({audio:true}, 
+      function(stream) {
+        try { micSource = audioContext.createMediaStreamSource(stream); } catch (e) { console.error(e); return; }
+        if (audioContext.state === "suspended") {
+            audioContext.resume();
+        }
+        start_mic()
+      },
+      function(e) {
+        alert('Error capturing audio.');
+      }
+    );
+    
+    } else { alert('getUserMedia not supported in this browser.'); }
+    }
+}
+
+function stop_mic(){
+    if(micSource){
+        try { micSource.disconnect(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioCtrl && audioToolContext.audioCtrl.stop(); } catch (e) { console.error(e); }
+        try { audioToolContext.audioSpectrum && audioToolContext.audioSpectrum.stop(); } catch (e) { console.error(e); }
+    }
+}
+
 const effectAnim = document.getElementById('effect-anim');
 const effectList = document.getElementById('effect-list');
 

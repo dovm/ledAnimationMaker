@@ -13,8 +13,13 @@ class CanvasApp {
   }
 
   resize() {
-    this.canvas.width = innerWidth
-    this.canvas.height = innerHeight
+    const parent = this.canvas.parentElement
+    const w = parent ? parent.clientWidth : innerWidth
+    const h = parent ? parent.clientHeight : innerHeight
+    if (w > 0 && h > 0) {
+      this.canvas.width = w
+      this.canvas.height = h
+    }
     for (const obj of this.objects) {
       if (obj.onResize) obj.onResize(this.canvas.width, this.canvas.height)
     }
@@ -32,19 +37,23 @@ class CanvasApp {
     return obj
   }
 
+  updatePointerFromEvent(e) {
+    const rect = this.canvas.getBoundingClientRect()
+    this.pointer.x = e.clientX - rect.left
+    this.pointer.y = e.clientY - rect.top
+  }
+
   bindInput() {
     this.canvas.onmousedown = e => {
       this.pointer.isDown = true
-      this.pointer.x = e.clientX
-      this.pointer.y = e.clientY
+      this.updatePointerFromEvent(e)
       for (const obj of this.objects) {
         if (obj.onPointerDown) obj.onPointerDown(this.pointer, e)
       }
     }
 
     this.canvas.onmousemove = e => {
-      this.pointer.x = e.clientX
-      this.pointer.y = e.clientY
+      this.updatePointerFromEvent(e)
       for (const obj of this.objects) {
         if (obj.onPointerMove) obj.onPointerMove(this.pointer, e)
       }
@@ -66,8 +75,7 @@ class CanvasApp {
 
     this.canvas.oncontextmenu = e => {
       e.preventDefault()
-      this.pointer.x = e.clientX
-      this.pointer.y = e.clientY
+      this.updatePointerFromEvent(e)
       for (const obj of this.objects) {
         if (obj.onContextMenu) obj.onContextMenu(this.pointer, e)
       }
@@ -101,16 +109,66 @@ class Point {
   }
 }
 
+// Shared 2D viewport: pan offset (tx, ty) in screen pixels and a uniform scale.
+// Used by ProjectCanvasController (layout tab) and AnimationCanvasController
+// (animation tab) to support wheel-zoom around the cursor and middle-mouse pan.
+class Viewport {
+  constructor() {
+    this.tx = 0
+    this.ty = 0
+    this.scale = 1
+    this.minScale = 0.1
+    this.maxScale = 8
+  }
+
+  screenToWorld(sx, sy) {
+    return { x: (sx - this.tx) / this.scale, y: (sy - this.ty) / this.scale }
+  }
+
+  worldToScreen(wx, wy) {
+    return { x: wx * this.scale + this.tx, y: wy * this.scale + this.ty }
+  }
+
+  applyToCtx(ctx) {
+    ctx.setTransform(this.scale, 0, 0, this.scale, this.tx, this.ty)
+  }
+
+  zoomAt(sx, sy, factor) {
+    const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * factor))
+    if (newScale === this.scale) return
+    const ratio = newScale / this.scale
+    this.tx = sx - (sx - this.tx) * ratio
+    this.ty = sy - (sy - this.ty) * ratio
+    this.scale = newScale
+  }
+
+  panBy(dx, dy) {
+    this.tx += dx
+    this.ty += dy
+  }
+
+  reset() {
+    this.tx = 0
+    this.ty = 0
+    this.scale = 1
+  }
+}
+
 class StripPoint {
   constructor(x, y) {
-    this.p = new Point(x, y)
+    this.x = x
+    this.y = y
     this.fixed = false
-    this.fp = new Point(x, y)
+    this.fx = x
+    this.fy = y
   }
 }
 
 class LedStripObject {
+  static _nextId = 1
+
   constructor(length, ledsPerMeter) {
+    this.id = LedStripObject._nextId++
     this.length = Math.max(0.1, Number(length) || 1)
     this.ledsPerMeter = Math.max(1, Number(ledsPerMeter) || 30)
     this.ledCount = Math.max(2, Math.round(this.length * this.ledsPerMeter))
@@ -371,13 +429,14 @@ class CableObject {
   }
 
   draw(ctx) {
+      if (this.points.length === 0) return
       ctx.strokeStyle = "#6a6a74"
       ctx.lineWidth = 1
       ctx.lineCap = "round"
       ctx.beginPath()
-      ctx.moveTo(this.points[0].p.x, this.points[0].p.y)
+      ctx.moveTo(this.points[0].x, this.points[0].y)
       for (let i = 1; i < this.points.length; i++) {
-        ctx.lineTo(this.points[i].p.x, this.points[i].p.y)
+        ctx.lineTo(this.points[i].x, this.points[i].y)
       }
       ctx.stroke()
   }
@@ -423,20 +482,20 @@ class RDPPath {
 
 // Helper function to calculate the perpendicular distance from a point to a line segment
   perpendicularDistance(point, start, end) {
-    const dx = end.p.x - start.p.x;
-    const dy = end.p.y - start.p.y;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
     const magSquared = dx * dx + dy * dy;
     let dist;
 
     if (magSquared > 0) {
-        const u = ((point.p.x - start.p.x) * dx + (point.p.y - start.p.y) * dy) / magSquared;
+        const u = ((point.x - start.x) * dx + (point.y - start.y) * dy) / magSquared;
         if (u < 0) {
             dist = this.distanceBetween(point, start);
         } else if (u > 1) {
             dist = this.distanceBetween(point, end);
         } else {
-            const intersectionX = start.p.x + u * dx;
-            const intersectionY = start.p.y + u * dy;
+            const intersectionX = start.x + u * dx;
+            const intersectionY = start.y + u * dy;
             dist = this.distanceBetween(point, new StripPoint(intersectionX, intersectionY));
         }
     } else {
@@ -447,8 +506,8 @@ class RDPPath {
 
 // Helper function to calculate distance between two points
   distanceBetween(point1, point2) {
-    const dx = point1.p.x - point2.p.x;
-    const dy = point1.p.y - point2.p.y;
+    const dx = point1.x - point2.x;
+    const dy = point1.y - point2.y;
     return Math.sqrt(dx * dx + dy * dy);
   }
 }
@@ -464,18 +523,18 @@ class drawPath {
   }
 
   onPointerDown(pointer) {
-    this.path.push(new StripPoint(pointer.p.x, pointer.p.y))
+    this.path.push(new StripPoint(pointer.x, pointer.y))
     this.drawing = true;
   }
 
   onPointerUp(pointer) {
-    this.path.push(new StripPoint(pointer.p.x, pointer.p.y))
+    this.path.push(new StripPoint(pointer.x, pointer.y))
     this.drawing = false;
   }
 
   onPointerMove(pointer) {
     if(this.drawing) {
-      this.path.push(new StripPoint(pointer.p.x, pointer.p.y))
+      this.path.push(new StripPoint(pointer.x, pointer.y))
     }
   }
 
@@ -486,28 +545,16 @@ class drawPath {
   }
 
   draw(ctx) {
-    for (const p of this.path) {
-      ctx.strokeStyle = "#6a6a74"
-      ctx.lineWidth = 1
-      ctx.lineCap = "round"
-      ctx.beginPath()
-      ctx.moveTo(this.path[0].p.x, this.path[0].p.y)
-      for (let i = 1; i < this.path.length; i++) {
-        ctx.lineTo(this.path[i].p.x, this.path[i].p.y)
-      }
-      ctx.stroke()
+    if (this.path.length === 0) return
+    ctx.strokeStyle = "#6a6a74"
+    ctx.lineWidth = 1
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(this.path[0].x, this.path[0].y)
+    for (let i = 1; i < this.path.length; i++) {
+      ctx.lineTo(this.path[i].x, this.path[i].y)
     }
+    ctx.stroke()
   }
 }
 
-const app = new CanvasApp(document.getElementById("c"))
-const dp = new drawPath(path => {
-  const ledStrip = new LedStripObject(5, 120)
-  ledStrip.setPointsFromPath(path)
-  app.add(ledStrip)
-  app.remove(dp)
-}); 
-const ledStrip = new LedStripObject(5, 120) 
-ledStrip.reset(app.canvas.width, app.canvas.height)
-app.add(ledStrip)
-app.start()
