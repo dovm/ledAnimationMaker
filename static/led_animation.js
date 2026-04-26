@@ -710,6 +710,13 @@ window.addEventListener('load', () => {
     return '#' + h(c[0]) + h(c[1]) + h(c[2])
   }
 
+  const clearDragMarkers = () => {
+    if (!groupList) return
+    for (const el of groupList.querySelectorAll('.drag-over-top, .drag-over-bottom, .dragging')) {
+      el.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging')
+    }
+  }
+
   const renderGroupList = () => {
     if (!groupList) return
     groupList.innerHTML = ''
@@ -720,11 +727,13 @@ window.addEventListener('load', () => {
       const li = document.createElement('li')
       li.classList.add('list-group-item', 'led-group')
       li.dataset.groupIndex = index
+      li.draggable = true
       if (group.selected) li.classList.add('selected-item')
 
       const colorHex = rgbToHex(frame ? frame.getGroupColor(group.id) : null)
       li.innerHTML = `
         <div class="d-flex align-items-center gap-2">
+          <span class="group-drag-handle" title="Drag to reorder"><span class="fa-solid fa-grip-vertical"></span></span>
           <input id="groupSel${index}" type="checkbox" />
           <input type="color" class="form-control form-control-color" style="width: 32px; padding: 0; border: 0;"
                  id="groupColor${index}" value="${colorHex}" title="Color in current frame" />
@@ -770,7 +779,80 @@ window.addEventListener('load', () => {
         renderGroupList()
         renderFrameThumbnails()
       })
+
+      // Drag-and-drop reorder. The current `anim.groups` order is the index
+      // sequence that "all groups by their index" mode of
+      // `createAnimationOnGroup` walks through, so reordering directly
+      // changes the sequencer order users see at playback.
+      li.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move'
+        try { e.dataTransfer.setData('text/plain', String(index)) } catch (_) {}
+        li.classList.add('dragging')
+      })
+      li.addEventListener('dragend', () => {
+        clearDragMarkers()
+      })
+      li.addEventListener('dragover', (e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        const r = li.getBoundingClientRect()
+        const before = (e.clientY - r.top) < r.height / 2
+        li.classList.toggle('drag-over-top', before)
+        li.classList.toggle('drag-over-bottom', !before)
+      })
+      li.addEventListener('dragleave', () => {
+        li.classList.remove('drag-over-top', 'drag-over-bottom')
+      })
+      li.addEventListener('drop', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10)
+        const r = li.getBoundingClientRect()
+        const before = (e.clientY - r.top) < r.height / 2
+        let toIdx = index + (before ? 0 : 1)
+        clearDragMarkers()
+        if (!Number.isFinite(fromIdx)) return
+        if (fromIdx === toIdx || fromIdx === toIdx - 1) return
+        const [moved] = anim.groups.splice(fromIdx, 1)
+        if (fromIdx < toIdx) toIdx -= 1
+        anim.groups.splice(toIdx, 0, moved)
+        renderGroupList()
+        renderFrameThumbnails()
+      })
     })
+
+    // Allow dropping below the last item by handling drop on the list itself
+    // (if the cursor is past the last <li>). Without this, dragging to the
+    // bottom does nothing when released past the last row.
+    groupList.ondragover = (e) => {
+      // Only react if the cursor is below all items; otherwise an <li>'s own
+      // dragover/drop handlers take care of it.
+      const last = groupList.lastElementChild
+      if (!last) { e.preventDefault(); return }
+      const lastRect = last.getBoundingClientRect()
+      if (e.clientY > lastRect.bottom) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        clearDragMarkers()
+        last.classList.add('drag-over-bottom')
+      }
+    }
+    groupList.ondrop = (e) => {
+      const last = groupList.lastElementChild
+      if (!last) return
+      const lastRect = last.getBoundingClientRect()
+      if (e.clientY <= lastRect.bottom) return
+      e.preventDefault()
+      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10)
+      clearDragMarkers()
+      if (!Number.isFinite(fromIdx)) return
+      const lastIdx = anim.groups.length - 1
+      if (fromIdx === lastIdx) return
+      const [moved] = anim.groups.splice(fromIdx, 1)
+      anim.groups.push(moved)
+      renderGroupList()
+      renderFrameThumbnails()
+    }
   }
 
   // ---- Frame thumbnails ----
@@ -904,6 +986,36 @@ window.addEventListener('load', () => {
     if (store.currentAnimationIndex >= 0) {
       store.removeAnimation(store.currentAnimationIndex)
     }
+  }
+
+  // Deep-copy the currently-selected animation, including all groups and
+  // frames. Groups in the copy get fresh ids (via `new LedGroup(...)`); frame
+  // group-color entries are remapped from the source group ids to the new
+  // ids so the duplicate's frames continue to reference its own groups.
+  window.duplicateAnimation = function () {
+    const src = store.getCurrentAnimation()
+    if (!src) return
+    const dup = new ProjectAnimation(`${src.name} (copy)`)
+    const groupIdMap = new Map() // old group id -> new group id
+    for (const g of src.groups) {
+      const ng = new LedGroup(g.name)
+      ng.members = g.members.map(m => ({ stripId: m.stripId, ledIndex: m.ledIndex }))
+      ng.selected = false
+      dup.groups.push(ng)
+      groupIdMap.set(g.id, ng.id)
+    }
+    for (const f of src.frames) {
+      const nf = new AnimFrame()
+      for (const [oldId, color] of f.groupColors) {
+        const newId = groupIdMap.get(oldId)
+        if (newId !== undefined) {
+          nf.groupColors.set(newId, [color[0], color[1], color[2]])
+        }
+      }
+      dup.frames.push(nf)
+    }
+    store.addAnimation(dup)
+    store.setCurrentAnimation(store.animations.length - 1)
   }
 
   window.selectAnimation = function (index) {

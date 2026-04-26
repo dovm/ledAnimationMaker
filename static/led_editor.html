@@ -175,10 +175,13 @@
                                 <span class="box-label">Animation Controls</span>
                                 <div class="btn-toolbar" role="toolbar">
                                     <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-default" onclick="createAnimation()">
+                                        <button type="button" class="btn btn-default" onclick="createAnimation()" title="Create animation">
                                             <span class="fa-solid fa-file-circle-plus"></span>
                                         </button>
-                                        <button type="button" class="btn btn-default" onclick="deleteAnimation()">
+                                        <button type="button" class="btn btn-default" onclick="duplicateAnimation()" title="Duplicate selected animation">
+                                            <span class="fa-solid fa-clone"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-default" onclick="deleteAnimation()" title="Delete selected animation">
                                             <span class="fa-solid fa-trash"></span>
                                         </button>
                                     </div>
@@ -191,14 +194,6 @@
                             </div>
                             <div class="box-wrapper h-100 overflow-auto d-flex flex-column">
                                 <span class="box-label">LED Groups</span>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-default" onclick="addGroup()">
-                                        <span class="fa-solid fa-object-group"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-default" onclick="clearGroups()">
-                                        <span class="fa-solid fa-trash"></span>
-                                    </button>
-                                </div>
                                 <ul id="led-group-list" class="list-group ">
                                 </ul>
                             </div>
@@ -212,13 +207,10 @@
                             <div class="toolbar">
                                 <div class="btn-toolbar" role="toolbar">
                                     <div class="d-flex flex-column align-items-start gap-2" style="width: 45px;">
-                                        <button type="button" class="btn btn-default" onclick="paintSelected()">
+                                        <button type="button" class="btn btn-default" onclick="paintSelected()" title="Paint selection with current color">
                                             <span class="fa-solid fa-fill-drip"></span>
                                         </button>
-                                        <button type="button" class="btn btn-default" onclick="paint_tool()">
-                                            <span class="fa-solid fa-brush"></span>
-                                        </button>
-                                        <button type="button" class="btn btn-default" onclick="select_tool()">
+                                        <button type="button" class="btn btn-default" onclick="addGroup()" title="Group selected LEDs">
                                             <span class="fa-solid fa-object-group"></span>
                                         </button>
                                         <input style="width: 40px;" class="form-control form-control-color" type="color"

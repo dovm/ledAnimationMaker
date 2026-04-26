@@ -338,6 +338,10 @@ window.addEventListener('load', () => {
 
   const effects = []
   let currentEffectIdx = -1
+  // When >= 0, the add-effect modal is in "edit" mode and `addEffect()` will
+  // replace `effects[editingEffectIdx]` instead of appending. Reset to -1
+  // whenever the modal hides (regardless of save / cancel).
+  let editingEffectIdx = -1
 
   const effectListEl = document.getElementById('effect-list')
   const animSelect = document.getElementById('effect-anim')
@@ -469,6 +473,10 @@ window.addEventListener('load', () => {
         if (event.target && event.target.type === 'checkbox') return
         selectEffect(index)
       })
+      li.addEventListener('dblclick', (event) => {
+        if (event.target && event.target.type === 'checkbox') return
+        openEditEffectModal(index)
+      })
       if (index === currentEffectIdx) li.classList.add('selected-item')
       effectListEl.appendChild(li)
       const cb = document.getElementById(`effect_checkbox${index}`)
@@ -525,6 +533,74 @@ window.addEventListener('load', () => {
     updateEffectControl(index)
   }
 
+  // ---- Add / edit modal helpers ------------------------------------------
+
+  const getAddEffectButton = () => {
+    if (!addEffectModalEl) return null
+    return addEffectModalEl.querySelector('.modal-footer button[onclick="addEffect()"]')
+  }
+
+  // Switch the modal title and the primary button between "Add" and "Edit"
+  // styles so it's obvious which action will fire on click.
+  const setEditEffectModalMode = (editing) => {
+    const title = document.getElementById('add-effect-modal-title')
+    if (title) title.textContent = editing ? 'Edit effect' : 'Add effect'
+    const btn = getAddEffectButton()
+    if (btn) {
+      btn.title = editing ? 'Save changes' : 'Add effect'
+      const icon = btn.querySelector('span')
+      if (icon) {
+        icon.classList.toggle('fa-plus', !editing)
+        icon.classList.toggle('fa-save', editing)
+      }
+    }
+  }
+
+  const populateModalFromEffect = (idx) => {
+    if (idx < 0 || idx >= effects.length) return
+    const e = effects[idx]
+    populateAnimSelect(animSelect)
+    populateAnimSelect(endAnimSelect)
+    if (effectTypeSelect && Number.isFinite(e.effectType)) {
+      effectTypeSelect.selectedIndex = e.effectType
+      effectTypeSelect.dispatchEvent(new Event('change'))
+    }
+    if (animSelect && e.animationId !== undefined && e.animationId !== null) {
+      const aIdx = store.animations.findIndex(a => a.id === e.animationId)
+      if (aIdx >= 0) animSelect.value = String(aIdx)
+    }
+    if (endAnimSelect && e.endAnimationId) {
+      const aIdx = store.animations.findIndex(a => a.id === e.endAnimationId)
+      if (aIdx >= 0) endAnimSelect.value = String(aIdx)
+    }
+    setVal('effect-Hz-min-range', e.effect.settings?.HzRange?.min)
+    setVal('effect-Hz-max-range', e.effect.settings?.HzRange?.max)
+    setVal('effect-min-range', e.effect.settings?.range?.min)
+    setVal('effect-max-range', e.effect.settings?.range?.max)
+    if (e.effect instanceof EffectTriger) {
+      setVal('effect-time-window', e.effect.settings?.timeWindow)
+      setVal('effect-animation-rate', e.effect.settings?.animationRate)
+    }
+  }
+
+  const openEditEffectModal = (idx) => {
+    if (idx < 0 || idx >= effects.length || !addEffectModalEl) return
+    editingEffectIdx = idx
+    populateModalFromEffect(idx)
+    setEditEffectModalMode(true)
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+      bootstrap.Modal.getOrCreateInstance(addEffectModalEl).show()
+    }
+  }
+
+  // Reset edit mode whenever the modal closes - covers both Save and Cancel.
+  if (addEffectModalEl) {
+    addEffectModalEl.addEventListener('hidden.bs.modal', () => {
+      editingEffectIdx = -1
+      setEditEffectModalMode(false)
+    })
+  }
+
   const addEffect = () => {
     if (!animSelect) return
     const animIdx = parseInt(animSelect.value)
@@ -534,16 +610,29 @@ window.addEventListener('load', () => {
     const settings = readSettingsFromForm()
     const effect = buildEffect({ effectType, animIdx, settings, endAnimIdx })
     if (!effect) return
-    effects.push({
+    const entry = {
       effect,
-      selected: true,
       animationId: store.animations[animIdx]?.id ?? null,
       endAnimationId: effect._endAnimationId,
       effectType,
-    })
+    }
+    if (editingEffectIdx >= 0 && editingEffectIdx < effects.length) {
+      // Preserve the existing checkbox state on edit so an active effect
+      // stays active across the edit.
+      entry.selected = !!effects[editingEffectIdx].selected
+      effects[editingEffectIdx] = entry
+    } else {
+      entry.selected = true
+      effects.push(entry)
+    }
     updateEffectList()
     updateEffectControl(-1)
     updateBandsInSpectrum()
+    // Close the modal on save - the `hidden.bs.modal` listener resets the
+    // edit state and the button/title back to "Add effect".
+    if (addEffectModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+      bootstrap.Modal.getOrCreateInstance(addEffectModalEl).hide()
+    }
   }
 
   const deleteEffect = () => {

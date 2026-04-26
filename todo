@@ -23,3 +23,17 @@ or that the animation is preformed on all the groups by there index and each fra
 remove load and save buttons from animation list
 and remove load and save buttons from effect list
 
+in animation tab:
+    remove select tool from tool bar
+    add "group button to tool bar that wil create a group on selected leds
+    remove draw tool
+    remove toolbar from the group list
+    make the grouplist draggable so it can be reordered
+
+in animation tab:
+    add a button to duplicate an animation
+in effects tab:
+    double click on a effect, open the effect modal to edit it
+
+in effect tab:
+    move spectrum analyzer to a modal, and add a button on the top tool bar to open it

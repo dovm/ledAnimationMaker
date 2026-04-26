@@ -198,6 +198,30 @@
             background-color: aquamarine;
         }
 
+        .led-group {
+            cursor: grab;
+        }
+        .led-group:active {
+            cursor: grabbing;
+        }
+        .led-group.dragging {
+            opacity: 0.5;
+        }
+        .led-group.drag-over-top {
+            box-shadow: 0 -2px 0 0 #1565c0 inset, 0 2px 0 0 #1565c0;
+        }
+        .led-group.drag-over-bottom {
+            box-shadow: 0 2px 0 0 #1565c0 inset, 0 -2px 0 0 #1565c0;
+        }
+        .group-drag-handle {
+            color: #888;
+            cursor: grab;
+            user-select: none;
+        }
+        .group-drag-handle:active {
+            cursor: grabbing;
+        }
+
         .list-item-label {
             align-content: center;
             margin-left: 5px;
